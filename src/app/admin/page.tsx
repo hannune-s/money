@@ -4,7 +4,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function FinancesAdminPage() {
-  const [accounts, setAccounts] = useState(Array(8).fill({ name: '', balance: '' }));
+  const defaultAccounts = [
+    { name: '법인계좌', balance: '' },
+    { name: '우체국', balance: '' },
+    { name: '카카오뱅크', balance: '' },
+    ...Array(5).fill({ name: '', balance: '' })
+  ];
+
+  const [accounts, setAccounts] = useState(defaultAccounts);
   const [expenditures, setExpenditures] = useState([{ name: '', amount: '' }]);
   const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
   const [status, setStatus] = useState({ msg: '', type: '' });
@@ -42,10 +49,18 @@ export default function FinancesAdminPage() {
         .single();
         
       if (data) {
-        const loadedAccounts = [...accounts];
+        const loadedAccounts = [
+          { name: '법인계좌', balance: '' },
+          { name: '우체국', balance: '' },
+          { name: '카카오뱅크', balance: '' },
+          ...Array(5).fill({ name: '', balance: '' })
+        ];
         data.accounts.forEach((acc: any, i: number) => {
           if (i < 8) {
-            loadedAccounts[i] = { name: acc.name, balance: acc.balance ? formatNumber(acc.balance) : '' };
+            loadedAccounts[i] = { 
+              name: i < 3 ? loadedAccounts[i].name : acc.name, 
+              balance: acc.balance ? formatNumber(acc.balance) : '' 
+            };
           }
         });
         setAccounts(loadedAccounts);
@@ -65,7 +80,12 @@ export default function FinancesAdminPage() {
   };
 
   const resetForm = () => {
-    setAccounts(Array(8).fill({ name: '', balance: '' }));
+    setAccounts([
+      { name: '법인계좌', balance: '' },
+      { name: '우체국', balance: '' },
+      { name: '카카오뱅크', balance: '' },
+      ...Array(5).fill({ name: '', balance: '' })
+    ]);
     setExpenditures([{ name: '', amount: '' }]);
   };
 
@@ -137,7 +157,14 @@ export default function FinancesAdminPage() {
           <div className="space-y-3">
             {accounts.map((acc, i) => (
               <div key={i} className="flex space-x-2">
-                <input type="text" placeholder="은행명 (예: 국민)" value={acc.name} onChange={e => updateAccount(i, 'name', e.target.value)} className="w-1/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm" />
+                <input 
+                  type="text" 
+                  placeholder="은행명 (예: 국민)" 
+                  value={acc.name} 
+                  onChange={e => updateAccount(i, 'name', e.target.value)} 
+                  readOnly={i < 3}
+                  className={`w-1/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm ${i < 3 ? 'bg-gray-100 text-gray-600 font-semibold outline-none focus:ring-0 cursor-default' : ''}`} 
+                />
                 <input type="text" placeholder="잔고 입력" value={acc.balance} onChange={e => updateAccount(i, 'balance', e.target.value)} className="w-2/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-right text-sm" />
               </div>
             ))}
