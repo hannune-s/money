@@ -42,7 +42,7 @@ export default function FinancesDashboardPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setCheckingPin(true);
-    const { verifyDashboardPin } = await import('../admin/actions');
+    const { verifyDashboardPin } = await import('./admin/actions');
     const isValid = await verifyDashboardPin(pin);
     if (isValid) {
       setIsAuthed(true);
