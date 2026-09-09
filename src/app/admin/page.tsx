@@ -1,163 +1,225 @@
 "use client";
-import { useEffect, useState } from 'react';
-import { fetchAdminAnalytics } from './actions';
 
-interface VisitorStat {
-  id: string;
-  visited_at: string;
-  referrer: string;
-  is_instagram: boolean;
-  path: string;
-}
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
-export default function AdminDashboard() {
-  const [stats, setStats] = useState<any[]>([]);
-  const [todayTotal, setTodayTotal] = useState<number>(0);
-  const [instagramCount, setInstagramCount] = useState<number>(0);
-  const [installCount, setInstallCount] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
+export default function FinancesAdminPage() {
+  const [accounts, setAccounts] = useState(Array(8).fill({ name: '', balance: '' }));
+  const [expenditures, setExpenditures] = useState([{ name: '', amount: '' }]);
+  const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
+  const [status, setStatus] = useState({ msg: '', type: '' });
+  const [loading, setLoading] = useState(false);
+  const [dashboardPin, setDashboardPin] = useState('');
+  const [savingPin, setSavingPin] = useState(false);
+
+  const formatNumber = (num: number) => num.toLocaleString('ko-KR');
+  const parseNumber = (str: string) => parseInt(str.toString().replace(/,/g, '') || '0', 10);
+
+  const calculateTotals = () => {
+    let totalAccounts = 0;
+    accounts.forEach(acc => totalAccounts += parseNumber(acc.balance));
+    let totalExpenditures = 0;
+    expenditures.forEach(exp => totalExpenditures += parseNumber(exp.amount));
+    return {
+      totalAccounts,
+      totalExpenditures,
+      finalBalance: totalAccounts - totalExpenditures
+    };
+  };
+
+  const totals = calculateTotals();
 
   useEffect(() => {
-    const pin = localStorage.getItem('admin_pin') || '';
-    if (pin) {
-      fetchAnalytics(pin);
-    } else {
-      setLoading(false);
-      setErrorMsg('관리자 인증이 필요합니다.');
-    }
-  }, []);
+    loadData();
+  }, [targetDate]);
 
-  const fetchAnalytics = async (pin: string) => {
-    setLoading(true);
+  const loadData = async () => {
     try {
-      const result = await fetchAdminAnalytics(pin);
-      if (result.error) {
-        setErrorMsg(result.message || '권한이 없습니다.');
-        return;
+      const { data, error } = await supabase
+        .from('money_finances')
+        .select('*')
+        .eq('target_date', targetDate)
+        .single();
+        
+      if (data) {
+        const loadedAccounts = [...accounts];
+        data.accounts.forEach((acc: any, i: number) => {
+          if (i < 8) {
+            loadedAccounts[i] = { name: acc.name, balance: acc.balance ? formatNumber(acc.balance) : '' };
+          }
+        });
+        setAccounts(loadedAccounts);
+        
+        if (data.expenditures && data.expenditures.length > 0) {
+          setExpenditures(data.expenditures.map((e: any) => ({ name: e.name, amount: e.amount ? formatNumber(e.amount) : '' })));
+        } else {
+          setExpenditures([{ name: '', amount: '' }]);
+        }
+      } else {
+        resetForm();
       }
-      setTodayTotal(result.totalCount!);
-      setInstagramCount(result.instaCount!);
-      setInstallCount(result.installCount!);
-      setStats(result.recentVisits!);
     } catch (err) {
-      console.error('Error fetching analytics:', err);
-      setErrorMsg('통계 데이터를 불러오는 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
+      console.log('초기 데이터 없음', err);
+      resetForm();
     }
   };
 
-  if (errorMsg) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="bg-red-50 border border-red-200 text-red-700 p-8 rounded-3xl flex flex-col items-center text-center max-w-lg">
-          <span className="text-4xl mb-4">⚠️</span>
-          <p className="font-extrabold text-xl mb-2">{errorMsg}</p>
-          {errorMsg.includes('SUPABASE_SERVICE_ROLE_KEY') && (
-            <p className="text-sm mt-2 text-red-600/80 leading-relaxed">
-              보안 강화를 위해 일반 유저의 통계 조회가 차단되었습니다.<br/>
-              관리자가 통계를 보려면 <b>Vercel과 로컬(.env.local)</b> 환경변수에<br/>
-              <code className="bg-red-100 px-1 py-0.5 rounded mx-1">SUPABASE_SERVICE_ROLE_KEY</code>를 등록해야 합니다.
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const resetForm = () => {
+    setAccounts(Array(8).fill({ name: '', balance: '' }));
+    setExpenditures([{ name: '', amount: '' }]);
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setStatus({ msg: '저장 중...', type: 'info' });
+    
+    const validAccounts = accounts.filter(a => a.name || parseNumber(a.balance) > 0).map(a => ({ name: a.name, balance: parseNumber(a.balance) }));
+    const validExpenditures = expenditures.filter(e => e.name || parseNumber(e.amount) > 0).map(e => ({ name: e.name, amount: parseNumber(e.amount) }));
+
+    const payload = {
+      target_date: targetDate,
+      accounts: validAccounts,
+      expenditures: validExpenditures,
+      total_account_balance: totals.totalAccounts,
+      total_expenditure: totals.totalExpenditures,
+      final_balance: totals.finalBalance
+    };
+
+    try {
+      const { error } = await supabase.from('money_finances').upsert(payload, { onConflict: 'target_date' });
+      if (error) throw error;
+      setStatus({ msg: '✅ 성공적으로 저장되었습니다!', type: 'success' });
+    } catch (err: any) {
+      console.error(err);
+      setStatus({ msg: `❌ 저장 실패: ${err.message}`, type: 'error' });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+    }
+  };
+
+  const updateAccount = (index: number, field: string, value: string) => {
+    const newAccounts = [...accounts];
+    if (field === 'balance') {
+      const num = parseNumber(value);
+      newAccounts[index] = { ...newAccounts[index], [field]: num === 0 && value.trim() === '' ? '' : formatNumber(num) };
+    } else {
+      newAccounts[index] = { ...newAccounts[index], [field]: value };
+    }
+    setAccounts(newAccounts);
+  };
+
+  const updateExpenditure = (index: number, field: string, value: string) => {
+    const newExp = [...expenditures];
+    if (field === 'amount') {
+      const num = parseNumber(value);
+      newExp[index] = { ...newExp[index], [field]: num === 0 && value.trim() === '' ? '' : formatNumber(num) };
+    } else {
+      newExp[index] = { ...newExp[index], [field]: value };
+    }
+    setExpenditures(newExp);
+  };
+
+  const addExpenditure = () => setExpenditures([...expenditures, { name: '', amount: '' }]);
+  const removeExpenditure = (index: number) => setExpenditures(expenditures.filter((_, i) => i !== index));
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-2">방문자 접속 통계</h1>
-      <p className="text-gray-500 mb-8">싹다모아 플랫폼의 통합 관리자 시스템입니다.</p>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">💸 일일 자금 현황 관리</h1>
+        <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-bold text-gray-700" />
+      </div>
 
-      {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {/* 오늘 총 방문자 */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-blue-500 flex flex-col justify-center">
-          <h3 className="text-gray-500 font-semibold mb-2">오늘 총 방문자</h3>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-extrabold text-blue-600">{loading ? '-' : todayTotal}</span>
-            <span className="text-gray-500">명</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Accounts */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-blue-800 mb-4">🏦 계좌잔고내역 (8개)</h2>
+          <div className="space-y-3">
+            {accounts.map((acc, i) => (
+              <div key={i} className="flex space-x-2">
+                <input type="text" placeholder="은행명 (예: 국민)" value={acc.name} onChange={e => updateAccount(i, 'name', e.target.value)} className="w-1/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm" />
+                <input type="text" placeholder="잔고 입력" value={acc.balance} onChange={e => updateAccount(i, 'balance', e.target.value)} className="w-2/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-right text-sm" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between font-bold text-lg">
+            <span>계좌 총액:</span>
+            <span className="text-blue-600">{formatNumber(totals.totalAccounts)} 원</span>
           </div>
         </div>
 
-        {/* 인스타그램 유입 */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-pink-500 flex flex-col justify-center">
-          <h3 className="text-gray-500 font-semibold mb-2">인스타그램 유입 (오늘)</h3>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-extrabold text-pink-600">{loading ? '-' : instagramCount}</span>
-            <span className="text-gray-500">명</span>
+        {/* Expenditures */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-red-800">💳 당일 지출 내역</h2>
+            <button onClick={addExpenditure} className="bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100 text-sm font-semibold transition">+ 항목 추가</button>
           </div>
-          <p className="text-xs text-gray-400 mt-2">
-            비중: {todayTotal > 0 ? Math.round((instagramCount / todayTotal) * 100) : 0}%
-          </p>
-        </div>
-        {/* 앱 설치 횟수 */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-green-500 flex flex-col justify-center">
-          <h3 className="text-gray-500 font-semibold mb-2">앱 설치 횟수 (오늘)</h3>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-extrabold text-green-600">{loading ? '-' : installCount}</span>
-            <span className="text-gray-500">건</span>
+          <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+            {expenditures.map((exp, i) => (
+              <div key={i} className="flex space-x-2 items-center">
+                <input type="text" placeholder="지출 내용" value={exp.name} onChange={e => updateExpenditure(i, 'name', e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-sm" />
+                <input type="text" placeholder="금액" value={exp.amount} onChange={e => updateExpenditure(i, 'amount', e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-right text-sm" />
+                <button onClick={() => removeExpenditure(i)} className="text-red-400 hover:text-red-600 font-bold px-2">✕</button>
+              </div>
+            ))}
           </div>
-          <p className="text-xs text-gray-400 mt-2">
-            '홈 화면 추가'를 통해 설치된 기기 수
-          </p>
+          <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between font-bold text-lg">
+            <span>지출 합계:</span>
+            <span className="text-red-600">{formatNumber(totals.totalExpenditures)} 원</span>
+          </div>
         </div>
       </div>
 
-      {/* 최근 접속 기록 */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
-        <div className="px-6 py-5 border-b border-gray-100">
-          <h3 className="text-lg font-bold">최근 접속/설치 기록 (최근 5건)</h3>
-        </div>
-        <div className="overflow-x-auto pb-4">
-          <table className="w-full min-w-[600px] text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 text-sm">
-                <th className="px-6 py-3 font-semibold">분류 / 접속 시간</th>
-                <th className="px-6 py-3 font-semibold">유입 경로 (Referrer)</th>
-                <th className="px-6 py-3 font-semibold">인스타그램 여부</th>
-                <th className="px-6 py-3 font-semibold">접속 페이지</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {loading ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-400">불러오는 중...</td>
-                </tr>
-              ) : stats.map((stat, idx) => (
-                <tr key={stat.id || idx} className={`border-t border-gray-50 ${stat.path === 'APP_INSTALL' ? 'bg-green-50/30' : ''}`}>
-                  <td className="px-6 py-3 text-gray-600 flex flex-col gap-1 items-start">
-                    {stat.path === 'APP_INSTALL' ? (
-                      <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">앱 설치</span>
-                    ) : (
-                      <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full">웹 방문</span>
-                    )}
-                    <span className="text-xs">{new Date(stat.visited_at).toLocaleString('ko-KR')}</span>
-                  </td>
-                  <td className="px-6 py-3 text-gray-800">{stat.referrer || '알 수 없음'}</td>
-                  <td className="px-6 py-3">
-                    {stat.path !== 'APP_INSTALL' && stat.is_instagram ? (
-                      <span className="text-pink-600 font-bold bg-pink-50 px-2 py-1 rounded text-xs">Instagram</span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-3 text-gray-500 truncate max-w-[150px]">
-                    {stat.path === 'APP_INSTALL' ? '-' : stat.path}
-                  </td>
-                </tr>
-              ))}
-              {!loading && stats.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-400">최근 기록이 없습니다.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <div className="bg-gray-900 text-white rounded-2xl p-8 text-center shadow-lg mt-6">
+        <h2 className="text-gray-400 text-sm font-semibold mb-2 tracking-wide uppercase">오늘의 최종 현잔고</h2>
+        <div className="text-5xl font-extrabold text-green-400">{formatNumber(totals.finalBalance)} <span className="text-3xl text-gray-400">원</span></div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6 max-w-md mx-auto">
+        <h3 className="text-lg font-bold text-gray-800 mb-2">🔒 공유 페이지 비밀번호 설정</h3>
+        <p className="text-xs text-gray-500 mb-4">공유 링크에 접속할 때 물어볼 4자리 비밀번호를 설정합니다.</p>
+        <div className="flex gap-2">
+          <input 
+            type="password" 
+            maxLength={4} 
+            value={dashboardPin} 
+            onChange={e => setDashboardPin(e.target.value.replace(/[^0-9]/g, ''))} 
+            placeholder="예: 1234" 
+            className="flex-1 p-2 border border-gray-300 rounded-lg text-center tracking-[0.3em] font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+          <button 
+            onClick={async () => {
+              if (dashboardPin.length !== 4) return alert('4자리를 입력해주세요.');
+              setSavingPin(true);
+              const { setDashboardPin: savePinAction } = await import('./actions');
+              const res = await savePinAction(dashboardPin);
+              setSavingPin(false);
+              if (res.success) alert('비밀번호가 설정되었습니다.');
+              else alert(res.error);
+            }}
+            disabled={savingPin}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 rounded-lg transition-colors whitespace-nowrap"
+          >
+            {savingPin ? '저장 중...' : '설정'}
+          </button>
         </div>
       </div>
+
+      <div className="flex justify-center space-x-4 pt-4">
+        <button onClick={handleSave} disabled={loading} className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3 px-10 rounded-xl shadow-md transition-all">
+          {loading ? '저장 중...' : '💾 자금 현황 저장'}
+        </button>
+        <button onClick={() => { if(confirm('모두 비우시겠습니까?')) resetForm(); }} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-3 px-8 rounded-xl shadow-sm transition-all">
+          초기화
+        </button>
+      </div>
+
+      {status.msg && (
+        <div className={`text-center font-bold mt-4 ${status.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+          {status.msg}
+        </div>
+      )}
+      <style>{`nav { display: none !important; }`}</style>
     </div>
   );
 }

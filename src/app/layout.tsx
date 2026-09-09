@@ -12,15 +12,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-import BottomNav from "@/components/BottomNav";
-
 export const metadata: Metadata = {
-  title: "싹다모아 - 자영업자 필수 링크 & 서식 종합 허브",
-  description: "복잡한 매장 관리, 배달 입점, 필수 서식을 한곳에 모았습니다.",
-  manifest: "/manifest.json",
+  title: "일일잔고현황",
+  description: "장부 및 자금 관리 시스템",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="ko"
@@ -28,7 +25,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         {children}
-        <BottomNav />
       </body>
     </html>
   );
