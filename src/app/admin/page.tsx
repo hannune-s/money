@@ -8,7 +8,7 @@ export default function FinancesAdminPage() {
     { name: '법인계좌', balance: '' },
     { name: '우체국', balance: '' },
     { name: '카카오뱅크', balance: '' },
-    ...Array(5).fill({ name: '', balance: '' })
+    ...Array(7).fill({ name: '', balance: '' })
   ];
 
   const [accounts, setAccounts] = useState(defaultAccounts);
@@ -53,10 +53,10 @@ export default function FinancesAdminPage() {
           { name: '법인계좌', balance: '' },
           { name: '우체국', balance: '' },
           { name: '카카오뱅크', balance: '' },
-          ...Array(5).fill({ name: '', balance: '' })
+          ...Array(7).fill({ name: '', balance: '' })
         ];
         data.accounts.forEach((acc: any, i: number) => {
-          if (i < 8) {
+          if (i < 10) {
             loadedAccounts[i] = { 
               name: i < 3 ? loadedAccounts[i].name : acc.name, 
               balance: acc.balance ? formatNumber(acc.balance) : '' 
@@ -84,7 +84,7 @@ export default function FinancesAdminPage() {
       { name: '법인계좌', balance: '' },
       { name: '우체국', balance: '' },
       { name: '카카오뱅크', balance: '' },
-      ...Array(5).fill({ name: '', balance: '' })
+      ...Array(7).fill({ name: '', balance: '' })
     ]);
     setExpenditures([{ name: '', amount: '' }]);
   };
@@ -169,7 +169,7 @@ export default function FinancesAdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Accounts */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-blue-800 mb-4">🏦 계좌잔고내역 (8개)</h2>
+          <h2 className="text-xl font-semibold text-blue-800 mb-4">🏦 계좌잔고내역 (10개)</h2>
           <div className="space-y-3">
             {accounts.map((acc, i) => (
               <div key={i} className="flex space-x-2">
