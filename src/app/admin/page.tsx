@@ -143,6 +143,8 @@ export default function FinancesAdminPage() {
   const addExpenditure = () => setExpenditures([...expenditures, { name: '', amount: '' }]);
   const removeExpenditure = (index: number) => setExpenditures(expenditures.filter((_, i) => i !== index));
 
+  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
       <div className="flex justify-between items-center mb-6">
@@ -153,7 +155,15 @@ export default function FinancesAdminPage() {
       {/* 최종 현잔고 (위로 이동 및 화이트 테마 적용) */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center mb-6">
         <h2 className="text-gray-500 text-sm font-bold mb-2 tracking-wide">오늘의 최종 현잔고</h2>
-        <div className="text-5xl font-extrabold text-green-600">{formatNumber(totals.finalBalance)} <span className="text-3xl text-gray-400">원</span></div>
+        <p className="text-xs text-green-600 mb-2 font-medium opacity-80">(금액을 누르면 보입니다)</p>
+        <div 
+          onClick={() => setIsBalanceVisible(!isBalanceVisible)}
+          className={`text-5xl font-extrabold text-green-600 cursor-pointer transition-all duration-300 select-none ${
+            !isBalanceVisible ? 'blur-[12px] opacity-70' : 'drop-shadow-sm'
+          }`}
+        >
+          {formatNumber(totals.finalBalance)} <span className="text-3xl text-gray-400">원</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
