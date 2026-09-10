@@ -144,10 +144,16 @@ export default function FinancesAdminPage() {
   const removeExpenditure = (index: number) => setExpenditures(expenditures.filter((_, i) => i !== index));
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">💸 일일 자금 현황 관리</h1>
         <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-bold text-gray-700" />
+      </div>
+
+      {/* 최종 현잔고 (위로 이동 및 화이트 테마 적용) */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center mb-6">
+        <h2 className="text-gray-500 text-sm font-bold mb-2 tracking-wide">오늘의 최종 현잔고</h2>
+        <div className="text-5xl font-extrabold text-green-600">{formatNumber(totals.finalBalance)} <span className="text-3xl text-gray-400">원</span></div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -197,12 +203,24 @@ export default function FinancesAdminPage() {
         </div>
       </div>
 
-      <div className="bg-gray-900 text-white rounded-2xl p-8 text-center shadow-lg mt-6">
-        <h2 className="text-gray-400 text-sm font-semibold mb-2 tracking-wide uppercase">오늘의 최종 현잔고</h2>
-        <div className="text-5xl font-extrabold text-green-400">{formatNumber(totals.finalBalance)} <span className="text-3xl text-gray-400">원</span></div>
+      {/* 저장 및 초기화 버튼 (장부 바로 아래) */}
+      <div className="flex justify-center space-x-4 pt-6 pb-2">
+        <button onClick={handleSave} disabled={loading} className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-4 px-12 rounded-xl shadow-md transition-all text-lg">
+          {loading ? '저장 중...' : '💾 자금 현황 저장'}
+        </button>
+        <button onClick={() => { if(confirm('모두 비우시겠습니까?')) resetForm(); }} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-4 px-10 rounded-xl shadow-sm transition-all text-lg">
+          초기화
+        </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6 max-w-md mx-auto">
+      {status.msg && (
+        <div className={`text-center font-bold mb-6 ${status.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+          {status.msg}
+        </div>
+      )}
+
+      {/* 비밀번호 설정 (맨 아래) */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-8 max-w-md mx-auto">
         <h3 className="text-lg font-bold text-gray-800 mb-2">🔒 공유 페이지 비밀번호 설정</h3>
         <p className="text-xs text-gray-500 mb-4">공유 링크에 접속할 때 물어볼 4자리 비밀번호를 설정합니다.</p>
         <div className="flex gap-2">
@@ -232,20 +250,6 @@ export default function FinancesAdminPage() {
         </div>
       </div>
 
-      <div className="flex justify-center space-x-4 pt-4">
-        <button onClick={handleSave} disabled={loading} className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3 px-10 rounded-xl shadow-md transition-all">
-          {loading ? '저장 중...' : '💾 자금 현황 저장'}
-        </button>
-        <button onClick={() => { if(confirm('모두 비우시겠습니까?')) resetForm(); }} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-3 px-8 rounded-xl shadow-sm transition-all">
-          초기화
-        </button>
-      </div>
-
-      {status.msg && (
-        <div className={`text-center font-bold mt-4 ${status.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-          {status.msg}
-        </div>
-      )}
       <style>{`nav { display: none !important; }`}</style>
     </div>
   );
