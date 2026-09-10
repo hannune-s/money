@@ -168,9 +168,9 @@ export default function FinancesAdminPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Accounts */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col">
           <h2 className="text-xl font-semibold text-blue-800 mb-4">🏦 계좌잔고내역 (10개)</h2>
-          <div className="space-y-3">
+          <div className="space-y-3 flex-1">
             {accounts.map((acc, i) => (
               <div key={i} className="flex space-x-2">
                 <input 
@@ -185,19 +185,19 @@ export default function FinancesAdminPage() {
               </div>
             ))}
           </div>
-          <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between font-bold text-lg">
+          <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between font-bold text-lg mt-auto">
             <span>계좌 총액:</span>
             <span className="text-blue-600">{formatNumber(totals.totalAccounts)} 원</span>
           </div>
         </div>
 
         {/* Expenditures */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-red-800">💳 당일 지출 내역</h2>
             <button onClick={addExpenditure} className="bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100 text-sm font-semibold transition">+ 항목 추가</button>
           </div>
-          <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+          <div className="space-y-3 overflow-y-auto pr-2 flex-1 min-h-[300px]">
             {expenditures.map((exp, i) => (
               <div key={i} className="flex space-x-2 items-center">
                 <input type="text" placeholder="지출 내용" value={exp.name} onChange={e => updateExpenditure(i, 'name', e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-sm" />
@@ -206,7 +206,7 @@ export default function FinancesAdminPage() {
               </div>
             ))}
           </div>
-          <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between font-bold text-lg">
+          <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between font-bold text-lg mt-auto">
             <span>지출 합계:</span>
             <span className="text-red-600">{formatNumber(totals.totalExpenditures)} 원</span>
           </div>
