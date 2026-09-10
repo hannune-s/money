@@ -55,14 +55,21 @@ export default function FinancesAdminPage() {
           { name: '카카오뱅크', balance: '' },
           ...Array(7).fill({ name: '', balance: '' })
         ];
-        data.accounts.forEach((acc: any, i: number) => {
-          if (i < 10) {
-            loadedAccounts[i] = { 
-              name: i < 3 ? loadedAccounts[i].name : acc.name, 
-              balance: acc.balance ? formatNumber(acc.balance) : '' 
-            };
-          }
-        });
+        if (data.accounts) {
+          data.accounts.forEach((acc: any, i: number) => {
+            if (i < 10) {
+              loadedAccounts[i] = { 
+                name: i < 3 ? loadedAccounts[i].name : acc.name, 
+                balance: acc.balance ? formatNumber(acc.balance) : '' 
+              };
+            } else {
+              loadedAccounts.push({
+                name: acc.name,
+                balance: acc.balance ? formatNumber(acc.balance) : ''
+              });
+            }
+          });
+        }
         setAccounts(loadedAccounts);
         
         if (data.expenditures && data.expenditures.length > 0) {
@@ -143,6 +150,9 @@ export default function FinancesAdminPage() {
   const addExpenditure = () => setExpenditures([...expenditures, { name: '', amount: '' }]);
   const removeExpenditure = (index: number) => setExpenditures(expenditures.filter((_, i) => i !== index));
 
+  const addAccount = () => setAccounts([...accounts, { name: '', balance: '' }]);
+  const removeAccount = (index: number) => setAccounts(accounts.filter((_, i) => i !== index));
+
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
 
   return (
@@ -169,19 +179,27 @@ export default function FinancesAdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Accounts */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col">
-          <h2 className="text-xl font-semibold text-blue-800 mb-4">🏦 계좌잔고내역 (10개)</h2>
-          <div className="space-y-3 flex-1">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-blue-800">🏦 계좌잔고내역 ({accounts.length}개)</h2>
+            <button onClick={addAccount} className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 text-sm font-semibold transition">+ 항목 추가</button>
+          </div>
+          <div className="space-y-3 flex-1 overflow-y-auto pr-2 min-h-[300px]">
             {accounts.map((acc, i) => (
-              <div key={i} className="flex space-x-2">
+              <div key={i} className="flex space-x-2 items-center">
                 <input 
                   type="text" 
                   placeholder="은행명 (예: 국민)" 
                   value={acc.name} 
                   onChange={e => updateAccount(i, 'name', e.target.value)} 
                   readOnly={i < 3}
-                  className={`w-1/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm ${i < 3 ? 'bg-gray-100 text-gray-600 font-semibold outline-none focus:ring-0 cursor-default' : ''}`} 
+                  className={`w-1/2 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm ${i < 3 ? 'bg-gray-100 text-gray-600 font-semibold outline-none focus:ring-0 cursor-default' : ''}`} 
                 />
-                <input type="text" placeholder="잔고 입력" value={acc.balance} onChange={e => updateAccount(i, 'balance', e.target.value)} className="w-2/3 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-right text-sm" />
+                <input type="text" placeholder="잔고 입력" value={acc.balance} onChange={e => updateAccount(i, 'balance', e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-right text-sm" />
+                {i >= 3 ? (
+                  <button onClick={() => removeAccount(i)} className="text-red-400 hover:text-red-600 font-bold px-2">✕</button>
+                ) : (
+                  <div className="w-8"></div>
+                )}
               </div>
             ))}
           </div>
