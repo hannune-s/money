@@ -13,7 +13,13 @@ export default function FinancesAdminPage() {
 
   const [accounts, setAccounts] = useState(defaultAccounts);
   const [expenditures, setExpenditures] = useState([{ name: '', amount: '' }]);
-  const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
+  const getKstDate = () => {
+    const now = new Date();
+    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    return kst.toISOString().split('T')[0];
+  };
+
+  const [targetDate, setTargetDate] = useState(getKstDate());
   const [status, setStatus] = useState({ msg: '', type: '' });
   const [loading, setLoading] = useState(false);
   const [dashboardPin, setDashboardPin] = useState('');

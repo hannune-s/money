@@ -7,9 +7,15 @@ export default function FinancesDashboardPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
-  const targetDate = new Date().toISOString().split('T')[0];
+  const getKstDate = () => {
+    const now = new Date();
+    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    return kst.toISOString().split('T')[0];
+  };
+  const targetDate = getKstDate();
+  
   const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
-  const displayDate = new Date().toLocaleDateString('ko-KR', dateOptions);
+  const displayDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toLocaleDateString('ko-KR', dateOptions);
 
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
 
