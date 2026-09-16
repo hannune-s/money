@@ -164,7 +164,12 @@ export default function FinancesAdminPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">💸 일일 자금 현황 관리</h1>
+        <div className="flex items-center space-x-3">
+          <h1 className="text-2xl font-bold">💸 일일 자금 현황 관리</h1>
+          <a href="/" target="_blank" rel="noopener noreferrer" className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-sm font-bold transition flex items-center shadow-sm">
+            📊 공유페이지 보기
+          </a>
+        </div>
         <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-bold text-gray-700" />
       </div>
 
