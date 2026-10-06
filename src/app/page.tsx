@@ -135,6 +135,18 @@ export default function FinancesDashboardPage() {
             </div>
           ) : data ? (
             <div>
+              {/* 전달사항 메모 카드 */}
+              {data.memo && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 mb-6 shadow-sm">
+                  <h2 className="text-yellow-800 text-lg font-bold mb-3 tracking-wide flex items-center">
+                    <span className="mr-2">📝</span> 전달사항
+                  </h2>
+                  <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-sm sm:text-base">
+                    {data.memo}
+                  </div>
+                </div>
+              )}
+
               {/* 최종 잔고 하이라이트 */}
               <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-2xl p-8 mb-8 text-center shadow-sm">
                 <h2 className="text-green-800 text-lg font-bold mb-3 tracking-wide">오늘의 최종 현잔고</h2>

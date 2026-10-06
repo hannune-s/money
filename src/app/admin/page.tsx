@@ -20,6 +20,7 @@ export default function FinancesAdminPage() {
   };
 
   const [targetDate, setTargetDate] = useState(getKstDate());
+  const [memo, setMemo] = useState('');
   const [status, setStatus] = useState({ msg: '', type: '' });
   const [loading, setLoading] = useState(false);
   const [dashboardPin, setDashboardPin] = useState('');
@@ -55,6 +56,7 @@ export default function FinancesAdminPage() {
         .single();
         
       if (data) {
+        setMemo(data.memo || '');
         const loadedAccounts = [
           { name: '법인계좌', balance: '' },
           { name: '우체국', balance: '' },
@@ -100,6 +102,7 @@ export default function FinancesAdminPage() {
       ...Array(7).fill({ name: '', balance: '' })
     ]);
     setExpenditures([{ name: '', amount: '' }]);
+    setMemo('');
   };
 
   const handleSave = async () => {
@@ -115,7 +118,8 @@ export default function FinancesAdminPage() {
       expenditures: validExpenditures,
       total_account_balance: totals.totalAccounts,
       total_expenditure: totals.totalExpenditures,
-      final_balance: totals.finalBalance
+      final_balance: totals.finalBalance,
+      memo: memo
     };
 
     try {
@@ -171,6 +175,19 @@ export default function FinancesAdminPage() {
           </a>
         </div>
         <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-bold text-gray-700" />
+      </div>
+
+      {/* 전달사항 메모 (최종 현잔고 위) */}
+      <div className="bg-yellow-50 rounded-2xl shadow-sm border border-yellow-200 p-6 mb-6">
+        <h2 className="text-yellow-800 text-lg font-bold mb-3 tracking-wide flex items-center">
+          <span className="mr-2">📝</span> 전달사항
+        </h2>
+        <textarea 
+          value={memo} 
+          onChange={e => setMemo(e.target.value)} 
+          placeholder="오늘의 전달사항이나 공유할 내용을 입력하세요." 
+          className="w-full p-4 border border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-gray-800 min-h-[100px] resize-y bg-white text-sm"
+        />
       </div>
 
       {/* 최종 현잔고 (위로 이동 및 화이트 테마 적용) */}
