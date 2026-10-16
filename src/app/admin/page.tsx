@@ -15,6 +15,7 @@ interface AlbaRecord {
 }
 
 const ALBA_STORAGE_DATE = '1970-01-01';
+const TOTAL_SUMMARY_STORAGE_DATE = '1970-01-03';
 
 export default function FinancesAdminPage() {
   const defaultAccounts = [
@@ -30,8 +31,13 @@ export default function FinancesAdminPage() {
     return kst.toISOString().split('T')[0];
   };
 
+  // 관리자 페이지 인증 상태
+  const [isAdminAuthed, setIsAdminAuthed] = useState(false);
+  const [loginPin, setLoginPin] = useState('');
+  const [checkingLoginPin, setCheckingLoginPin] = useState(false);
+
   // 네비게이션 및 메뉴 상태
-  const [activeMenu, setActiveMenu] = useState<'finance' | 'alba'>('finance');
+  const [activeMenu, setActiveMenu] = useState<'finance' | 'alba' | 'password'>('finance');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // [1] 일일 자금 현황 상태
@@ -41,9 +47,21 @@ export default function FinancesAdminPage() {
   const [memo, setMemo] = useState('');
   const [status, setStatus] = useState({ msg: '', type: '' });
   const [loading, setLoading] = useState(false);
+  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+
+  // [1-2] 토탈 현황 (현재까지 매출·매입·지출) 및 차입·상환 상태
+  const [cumSales, setCumSales] = useState('');
+  const [cumPurchases, setCumPurchases] = useState('');
+  const [cumExpenses, setCumExpenses] = useState('');
+  const [borrowItems, setBorrowItems] = useState([{ name: '', amount: '' }]);
+  const [repayItems, setRepayItems] = useState([{ name: '', amount: '' }]);
+  const [summarySaving, setSummarySaving] = useState(false);
+
+  // [3] 비밀번호 설정 상태 (공유 페이지 & 어드민 페이지)
   const [dashboardPin, setDashboardPin] = useState('');
   const [savingPin, setSavingPin] = useState(false);
-  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+  const [adminPin, setAdminPin] = useState('');
+  const [savingAdminPin, setSavingAdminPin] = useState(false);
 
   // [2] 알바관리 상태
   const [albaList, setAlbaList] = useState<AlbaRecord[]>([]);
@@ -59,6 +77,11 @@ export default function FinancesAdminPage() {
 
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
   const parseNumber = (str: string) => parseInt(str.toString().replace(/,/g, '') || '0', 10);
+  const formatAmountInput = (val: string) => {
+    const clean = val.replace(/[^0-9]/g, '');
+    if (!clean) return '';
+    return parseInt(clean, 10).toLocaleString('ko-KR');
+  };
 
   const calculateTotals = () => {
     let totalAccounts = 0;
@@ -73,6 +96,61 @@ export default function FinancesAdminPage() {
   };
 
   const totals = calculateTotals();
+  const cumTotalBalance = parseNumber(cumSales) - parseNumber(cumPurchases) - parseNumber(cumExpenses);
+  const totalBorrowed = borrowItems.reduce((sum, item) => sum + parseNumber(item.amount), 0);
+  const totalRepaid = repayItems.reduce((sum, item) => sum + parseNumber(item.amount), 0);
+  const loanRemainingBalance = totalBorrowed - totalRepaid;
+
+  const updateBorrowItem = (index: number, field: 'name' | 'amount', value: string) => {
+    const next = [...borrowItems];
+    if (field === 'amount') {
+      next[index] = { ...next[index], amount: formatAmountInput(value) };
+    } else {
+      next[index] = { ...next[index], name: value };
+    }
+    setBorrowItems(next);
+  };
+  const addBorrowItem = () => setBorrowItems([...borrowItems, { name: '', amount: '' }]);
+  const removeBorrowItem = (index: number) => {
+    const next = borrowItems.filter((_, i) => i !== index);
+    setBorrowItems(next.length > 0 ? next : [{ name: '', amount: '' }]);
+  };
+
+  const updateRepayItem = (index: number, field: 'name' | 'amount', value: string) => {
+    const next = [...repayItems];
+    if (field === 'amount') {
+      next[index] = { ...next[index], amount: formatAmountInput(value) };
+    } else {
+      next[index] = { ...next[index], name: value };
+    }
+    setRepayItems(next);
+  };
+  const addRepayItem = () => setRepayItems([...repayItems, { name: '', amount: '' }]);
+  const removeRepayItem = (index: number) => {
+    const next = repayItems.filter((_, i) => i !== index);
+    setRepayItems(next.length > 0 ? next : [{ name: '', amount: '' }]);
+  };
+
+  useEffect(() => {
+    if (sessionStorage.getItem('money_admin_authed') === 'true') {
+      setIsAdminAuthed(true);
+    }
+  }, []);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCheckingLoginPin(true);
+    const { verifyAdminPin } = await import('./actions');
+    const isValid = await verifyAdminPin(loginPin);
+    if (isValid) {
+      setIsAdminAuthed(true);
+      sessionStorage.setItem('money_admin_authed', 'true');
+    } else {
+      alert('관리자 비밀번호가 일치하지 않습니다.');
+      setLoginPin('');
+    }
+    setCheckingLoginPin(false);
+  };
 
   useEffect(() => {
     loadData();
@@ -80,7 +158,107 @@ export default function FinancesAdminPage() {
 
   useEffect(() => {
     loadAlbaRecords();
+    loadTotalSummary();
   }, []);
+
+  const applySummaryParsed = (parsed: any) => {
+    if (!parsed || typeof parsed !== 'object') return;
+    setCumSales(parsed.cumSales ? formatNumber(Number(parsed.cumSales)) : '');
+    setCumPurchases(parsed.cumPurchases ? formatNumber(Number(parsed.cumPurchases)) : '');
+    setCumExpenses(parsed.cumExpenses ? formatNumber(Number(parsed.cumExpenses)) : '');
+
+    if (Array.isArray(parsed.borrowItems) && parsed.borrowItems.length > 0) {
+      setBorrowItems(
+        parsed.borrowItems.map((b: any) => ({
+          name: b.name || '',
+          amount: b.amount ? formatNumber(Number(b.amount)) : '',
+        }))
+      );
+    } else if (parsed.loanBorrowed) {
+      setBorrowItems([{ name: '기존 차입금', amount: formatNumber(Number(parsed.loanBorrowed)) }]);
+    } else {
+      setBorrowItems([{ name: '', amount: '' }]);
+    }
+
+    if (Array.isArray(parsed.repayItems) && parsed.repayItems.length > 0) {
+      setRepayItems(
+        parsed.repayItems.map((r: any) => ({
+          name: r.name || '',
+          amount: r.amount ? formatNumber(Number(r.amount)) : '',
+        }))
+      );
+    } else if (parsed.loanRepaid) {
+      setRepayItems([{ name: '기존 상환금', amount: formatNumber(Number(parsed.loanRepaid)) }]);
+    } else {
+      setRepayItems([{ name: '', amount: '' }]);
+    }
+  };
+
+  const loadTotalSummary = async () => {
+    try {
+      const { data } = await supabase
+        .from('money_finances')
+        .select('memo')
+        .eq('target_date', TOTAL_SUMMARY_STORAGE_DATE)
+        .single();
+
+      if (data && data.memo) {
+        const parsed = JSON.parse(data.memo);
+        applySummaryParsed(parsed);
+        return;
+      }
+      const local = localStorage.getItem('money_total_summary');
+      if (local) applySummaryParsed(JSON.parse(local));
+    } catch {
+      const local = localStorage.getItem('money_total_summary');
+      if (local) applySummaryParsed(JSON.parse(local));
+    }
+  };
+
+  const saveTotalSummary = async (silent = false) => {
+    if (!silent) setSummarySaving(true);
+    const validBorrows = borrowItems
+      .filter(b => b.name.trim() || parseNumber(b.amount) > 0)
+      .map(b => ({ name: b.name, amount: parseNumber(b.amount) }));
+    const validRepays = repayItems
+      .filter(r => r.name.trim() || parseNumber(r.amount) > 0)
+      .map(r => ({ name: r.name, amount: parseNumber(r.amount) }));
+
+    const summaryObj = {
+      cumSales: parseNumber(cumSales),
+      cumPurchases: parseNumber(cumPurchases),
+      cumExpenses: parseNumber(cumExpenses),
+      borrowItems: validBorrows,
+      repayItems: validRepays,
+    };
+    localStorage.setItem('money_total_summary', JSON.stringify(summaryObj));
+    try {
+      const { error } = await supabase.from('money_finances').upsert(
+        {
+          target_date: TOTAL_SUMMARY_STORAGE_DATE,
+          accounts: [],
+          expenditures: [],
+          total_account_balance: 0,
+          total_expenditure: 0,
+          final_balance: 0,
+          memo: JSON.stringify(summaryObj),
+        },
+        { onConflict: 'target_date' }
+      );
+      if (error) throw error;
+      if (!silent) {
+        setStatus({ msg: '✅ 토탈 및 차입·상환 현황이 저장되었습니다!', type: 'success' });
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+      }
+    } catch (err: any) {
+      if (!silent) {
+        setStatus({ msg: `❌ 저장 실패: ${err.message}`, type: 'error' });
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+      }
+    } finally {
+      if (!silent) setSummarySaving(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -158,6 +336,7 @@ export default function FinancesAdminPage() {
     };
 
     try {
+      await saveTotalSummary(true);
       const { error } = await supabase.from('money_finances').upsert(payload, { onConflict: 'target_date' });
       if (error) throw error;
       setStatus({ msg: '✅ 성공적으로 저장되었습니다!', type: 'success' });
@@ -339,6 +518,40 @@ export default function FinancesAdminPage() {
     return 'bg-red-100 text-red-800 border-red-200';
   };
 
+  if (!isAdminAuthed) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans pb-24">
+        <form onSubmit={handleAdminLogin} className="bg-white p-7 sm:p-8 rounded-3xl shadow-xl border border-gray-100 w-full max-w-sm flex flex-col items-center">
+          <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-2xl">🛡️</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-2 whitespace-nowrap">머니장부 관리자(Admin)</h2>
+          <p className="text-xs sm:text-sm text-gray-500 mb-7 text-center break-keep">
+            관리자 전용 페이지입니다.<br />어드민 비밀번호 4자리를 입력해주세요.
+          </p>
+
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            value={loginPin}
+            onChange={e => setLoginPin(e.target.value.replace(/[^0-9]/g, ''))}
+            className="w-full text-center text-3xl tracking-[0.5em] p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-yellow-500 mb-6 font-mono transition-shadow"
+            placeholder="****"
+            autoFocus
+          />
+          <button
+            type="submit"
+            disabled={checkingLoginPin || loginPin.length < 4}
+            className="w-full py-4 bg-gray-900 hover:bg-black disabled:bg-gray-300 text-white font-bold rounded-2xl transition-colors shadow-sm whitespace-nowrap"
+          >
+            {checkingLoginPin ? '확인 중...' : '관리자 접속'}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 상단 고정 네비게이션 바 (햄버거 메뉴 + 탭 전환) */}
@@ -355,7 +568,11 @@ export default function FinancesAdminPage() {
               </svg>
             </button>
             <span className="text-base sm:text-xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap truncate">
-              {activeMenu === 'finance' ? '💸 일일 자금 현황' : '🚨 알바 근무태도 · 이력 관리'}
+              {activeMenu === 'finance'
+                ? '💸 일일 자금 현황'
+                : activeMenu === 'alba'
+                ? '🚨 알바 근무태도 · 이력 관리'
+                : '🔒 비밀번호 설정'}
             </span>
           </div>
 
@@ -437,10 +654,38 @@ export default function FinancesAdminPage() {
               {albaList.length}
             </span>
           </button>
+
+          <button
+            onClick={() => {
+              setActiveMenu('password');
+              setIsDrawerOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+              activeMenu === 'password'
+                ? 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <span className="text-lg shrink-0">🔒</span>
+            <span>비밀번호 설정</span>
+          </button>
         </div>
 
-        <div className="p-4 border-t border-gray-100 text-xs text-gray-400 text-center">
-          © 2026 머니장부 Admin
+        <div className="p-4 border-t border-gray-100 space-y-3">
+          <button
+            onClick={() => {
+              sessionStorage.removeItem('money_admin_authed');
+              setIsAdminAuthed(false);
+              setLoginPin('');
+              setIsDrawerOpen(false);
+            }}
+            className="w-full py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs transition-colors whitespace-nowrap"
+          >
+            🔐 관리자 화면 잠금 (로그아웃)
+          </button>
+          <div className="text-xs text-gray-400 text-center">
+            © 2026 머니장부 Admin
+          </div>
         </div>
       </aside>
 
@@ -470,6 +715,245 @@ export default function FinancesAdminPage() {
                 placeholder="오늘의 전달사항이나 공유할 내용을 입력하세요." 
                 className="w-full p-3.5 sm:p-4 border border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-gray-800 min-h-[100px] resize-y bg-white text-sm"
               />
+            </div>
+
+            {/* 1. 토탈 현황 (현재까지 매출 / 매입 / 지출 -> 현잔고) */}
+            <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-4 sm:p-5">
+              <div className="flex justify-between items-center gap-2 mb-3.5 pb-2.5 border-b border-gray-100">
+                <div>
+                  <h2 className="text-base sm:text-lg font-extrabold text-indigo-900 flex items-center gap-1.5 whitespace-nowrap">
+                    <span>📊</span> 토탈 현황
+                  </h2>
+                  <p className="text-[11px] text-gray-400 mt-0.5">현재까지 누적 매출 · 매입 · 지출 정산</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => saveTotalSummary(false)}
+                  disabled={summarySaving}
+                  className="text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0"
+                >
+                  {summarySaving ? '저장 중...' : '💾 저장'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="flex sm:flex-col items-center sm:items-stretch justify-between gap-2 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                  <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap shrink-0 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black">+</span>
+                    현재까지 매출
+                  </label>
+                  <div className="relative flex-1 sm:w-full max-w-[200px] sm:max-w-none">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={cumSales}
+                      onChange={e => setCumSales(formatAmountInput(e.target.value))}
+                      className="w-full py-2 pl-3 pr-7 bg-white border border-gray-200 rounded-xl text-right font-bold text-sm text-blue-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">원</span>
+                  </div>
+                </div>
+
+                <div className="flex sm:flex-col items-center sm:items-stretch justify-between gap-2 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                  <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap shrink-0 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center text-xs font-black">−</span>
+                    매입
+                  </label>
+                  <div className="relative flex-1 sm:w-full max-w-[200px] sm:max-w-none">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={cumPurchases}
+                      onChange={e => setCumPurchases(formatAmountInput(e.target.value))}
+                      className="w-full py-2 pl-3 pr-7 bg-white border border-gray-200 rounded-xl text-right font-bold text-sm text-orange-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">원</span>
+                  </div>
+                </div>
+
+                <div className="flex sm:flex-col items-center sm:items-stretch justify-between gap-2 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                  <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap shrink-0 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-md bg-red-50 text-red-600 flex items-center justify-center text-xs font-black">−</span>
+                    지출
+                  </label>
+                  <div className="relative flex-1 sm:w-full max-w-[200px] sm:max-w-none">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={cumExpenses}
+                      onChange={e => setCumExpenses(formatAmountInput(e.target.value))}
+                      className="w-full py-2 pl-3 pr-7 bg-white border border-gray-200 rounded-xl text-right font-bold text-sm text-red-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">원</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3.5 pt-3 border-t border-indigo-100 bg-indigo-50/70 px-3.5 py-3 rounded-xl flex justify-between items-center gap-2">
+                <div>
+                  <span className="text-xs sm:text-sm font-extrabold text-indigo-900 whitespace-nowrap block">토탈 현잔고</span>
+                  <span className="text-[10px] text-indigo-500 font-semibold whitespace-nowrap">현재까지 매출 − 매입 − 지출</span>
+                </div>
+                <span className={`text-base sm:text-xl font-black whitespace-nowrap ${cumTotalBalance >= 0 ? 'text-indigo-700' : 'text-red-600'}`}>
+                  {formatNumber(cumTotalBalance)} <span className="text-xs sm:text-sm font-bold">원</span>
+                </span>
+              </div>
+            </div>
+
+            {/* 2. 차입 · 상환 현황 (당일 지출 내역처럼 항목 직접 추가/삭제 방식) */}
+            <div className="bg-white rounded-2xl shadow-sm border border-amber-200 p-4 sm:p-5">
+              <div className="flex justify-between items-center gap-2 mb-4 pb-2.5 border-b border-gray-100">
+                <div>
+                  <h2 className="text-base sm:text-lg font-extrabold text-amber-900 flex items-center gap-1.5 whitespace-nowrap">
+                    <span>💳</span> 차입 · 상환 현황
+                  </h2>
+                  <p className="text-[11px] text-gray-400 mt-0.5">차입 항목과 상환 항목을 직접 추가하여 남은 잔금을 관리합니다.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => saveTotalSummary(false)}
+                  disabled={summarySaving}
+                  className="text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0"
+                >
+                  {summarySaving ? '저장 중...' : '💾 저장'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                {/* 좌측: 차입 내역 */}
+                <div className="bg-amber-50/40 rounded-xl border border-amber-100 p-3.5 flex flex-col">
+                  <div className="flex justify-between items-center gap-2 mb-3">
+                    <h3 className="text-sm sm:text-base font-extrabold text-amber-900 flex items-center gap-1.5 whitespace-nowrap">
+                      <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-black">借</span>
+                      차입 내역 ({borrowItems.length}건)
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={addBorrowItem}
+                      className="bg-amber-100/80 text-amber-800 px-2.5 py-1 rounded-lg hover:bg-amber-200 text-xs font-bold transition whitespace-nowrap shrink-0"
+                    >
+                      + 항목 추가
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 flex-1 max-h-[220px] overflow-y-auto pr-1">
+                    {borrowItems.map((item, i) => (
+                      <div key={i} className="flex space-x-2 items-center">
+                        <input
+                          type="text"
+                          placeholder="차입처/내용"
+                          value={item.name}
+                          onChange={e => updateBorrowItem(i, 'name', e.target.value)}
+                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                        />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="차입 금액"
+                          value={item.amount}
+                          onChange={e => updateBorrowItem(i, 'amount', e.target.value)}
+                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-right text-sm font-semibold"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeBorrowItem(i)}
+                          className="text-red-400 hover:text-red-600 font-bold px-1.5 shrink-0"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 pt-2.5 border-t border-amber-200/70 flex justify-between items-center font-bold text-sm sm:text-base whitespace-nowrap">
+                    <span className="text-gray-700">차입 합계:</span>
+                    <span className="text-amber-800">{formatNumber(totalBorrowed)} 원</span>
+                  </div>
+                </div>
+
+                {/* 우측: 상환 내역 */}
+                <div className="bg-emerald-50/40 rounded-xl border border-emerald-100 p-3.5 flex flex-col">
+                  <div className="flex justify-between items-center gap-2 mb-3">
+                    <h3 className="text-sm sm:text-base font-extrabold text-emerald-900 flex items-center gap-1.5 whitespace-nowrap">
+                      <span className="w-5 h-5 rounded-md bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-black">還</span>
+                      상환 내역 ({repayItems.length}건)
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={addRepayItem}
+                      className="bg-emerald-100/80 text-emerald-800 px-2.5 py-1 rounded-lg hover:bg-emerald-200 text-xs font-bold transition whitespace-nowrap shrink-0"
+                    >
+                      + 항목 추가
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 flex-1 max-h-[220px] overflow-y-auto pr-1">
+                    {repayItems.map((item, i) => (
+                      <div key={i} className="flex space-x-2 items-center">
+                        <input
+                          type="text"
+                          placeholder="상환처/내용"
+                          value={item.name}
+                          onChange={e => updateRepayItem(i, 'name', e.target.value)}
+                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-sm"
+                        />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="상환 금액"
+                          value={item.amount}
+                          onChange={e => updateRepayItem(i, 'amount', e.target.value)}
+                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-right text-sm font-semibold text-emerald-700"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeRepayItem(i)}
+                          className="text-red-400 hover:text-red-600 font-bold px-1.5 shrink-0"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 pt-2.5 border-t border-emerald-200/70 flex justify-between items-center font-bold text-sm sm:text-base whitespace-nowrap">
+                    <span className="text-gray-700">상환 합계:</span>
+                    <span className="text-emerald-700">{formatNumber(totalRepaid)} 원</span>
+                  </div>
+                </div>
+              </div>
+
+              {totalBorrowed > 0 && (
+                <div className="mt-3.5 px-1">
+                  <div className="flex justify-between text-[11px] font-bold text-gray-500 mb-1">
+                    <span>상환 진행률</span>
+                    <span className="text-emerald-600">
+                      {Math.min(100, Math.round((totalRepaid / totalBorrowed) * 100))}% 완료
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(100, Math.round((totalRepaid / totalBorrowed) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3.5 pt-3 border-t border-amber-200 bg-amber-50/70 px-3.5 py-3 rounded-xl flex justify-between items-center gap-2">
+                <div>
+                  <span className="text-xs sm:text-sm font-extrabold text-amber-900 whitespace-nowrap block">남은 잔금 (미상환 잔액)</span>
+                  <span className="text-[10px] text-amber-600 font-semibold whitespace-nowrap">차입 합계 − 상환 합계</span>
+                </div>
+                <span className={`text-base sm:text-xl font-black whitespace-nowrap ${loanRemainingBalance > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                  {formatNumber(loanRemainingBalance)} <span className="text-xs sm:text-sm font-bold">원</span>
+                </span>
+              </div>
             </div>
 
             {/* 최종 현잔고 */}
@@ -556,39 +1040,8 @@ export default function FinancesAdminPage() {
                 </div>
               </div>
             </div>
-
-            {/* 비밀번호 설정 (맨 아래) */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-6 mt-8 max-w-md mx-auto">
-              <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-2">🔒 공유 페이지 비밀번호 설정</h3>
-              <p className="text-xs text-gray-500 mb-4 break-keep">공유 링크에 접속할 때 물어볼 4자리 비밀번호를 설정합니다.</p>
-              <div className="flex gap-2">
-                <input 
-                  type="password" 
-                  maxLength={4} 
-                  value={dashboardPin} 
-                  onChange={e => setDashboardPin(e.target.value.replace(/[^0-9]/g, ''))} 
-                  placeholder="예: 1234" 
-                  className="flex-1 p-2 border border-gray-300 rounded-lg text-center tracking-[0.3em] font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-                <button 
-                  onClick={async () => {
-                    if (dashboardPin.length !== 4) return alert('4자리를 입력해주세요.');
-                    setSavingPin(true);
-                    const { setDashboardPin: savePinAction } = await import('./actions');
-                    const res = await savePinAction(dashboardPin);
-                    setSavingPin(false);
-                    if (res.success) alert('비밀번호가 설정되었습니다.');
-                    else alert(res.error);
-                  }}
-                  disabled={savingPin}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 rounded-lg transition-colors whitespace-nowrap shrink-0"
-                >
-                  {savingPin ? '저장 중...' : '설정'}
-                </button>
-              </div>
-            </div>
           </div>
-        ) : (
+        ) : activeMenu === 'alba' ? (
           /* ==================== [메뉴 2] 알바관리 (평가/이력/사건사고 기록) ==================== */
           <div className="space-y-3">
             {/* 입력 폼 카드 */}
@@ -788,6 +1241,101 @@ export default function FinancesAdminPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        ) : (
+          /* ==================== [메뉴 3] 비밀번호 설정 (공유페이지 & 어드민페이지) ==================== */
+          <div className="max-w-xl mx-auto space-y-5">
+            {/* 1. 공유 페이지 비밀번호 설정 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-6">
+              <div className="flex items-center gap-2.5 mb-2">
+                <span className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shrink-0">
+                  📊
+                </span>
+                <div>
+                  <h3 className="text-base sm:text-lg font-extrabold text-gray-900">공유 페이지 비밀번호 설정</h3>
+                  <p className="text-xs text-gray-500 break-keep">
+                    일일잔고현황 공유 페이지(메인 화면) 접속 시 물어볼 숫자 4자리 비밀번호를 변경합니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={dashboardPin}
+                  onChange={e => setDashboardPin(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="새 4자리 숫자 (예: 1234)"
+                  className="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-xl text-center tracking-[0.3em] font-mono text-base focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+                <button
+                  onClick={async () => {
+                    if (dashboardPin.length !== 4) return alert('숫자 4자리를 입력해주세요.');
+                    setSavingPin(true);
+                    const { setDashboardPin: savePinAction } = await import('./actions');
+                    const res = await savePinAction(dashboardPin);
+                    setSavingPin(false);
+                    if (res.success) {
+                      alert('공유 페이지 비밀번호가 변경되었습니다.');
+                      setDashboardPin('');
+                    } else {
+                      alert(res.error);
+                    }
+                  }}
+                  disabled={savingPin}
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold px-5 rounded-xl transition-colors whitespace-nowrap shrink-0 text-sm sm:text-base"
+                >
+                  {savingPin ? '저장 중...' : '변경 저장'}
+                </button>
+              </div>
+            </div>
+
+            {/* 2. 어드민(관리자) 페이지 비밀번호 설정 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-6">
+              <div className="flex items-center gap-2.5 mb-2">
+                <span className="w-9 h-9 rounded-xl bg-yellow-100 text-yellow-800 flex items-center justify-center text-lg shrink-0">
+                  🛡️
+                </span>
+                <div>
+                  <h3 className="text-base sm:text-lg font-extrabold text-gray-900">어드민 페이지 비밀번호 설정</h3>
+                  <p className="text-xs text-gray-500 break-keep">
+                    관리자 페이지(/admin) 접속 시 물어볼 숫자 4자리 비밀번호를 변경합니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={adminPin}
+                  onChange={e => setAdminPin(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="새 4자리 숫자 (예: 1234)"
+                  className="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-xl text-center tracking-[0.3em] font-mono text-base focus:ring-2 focus:ring-yellow-500 outline-none"
+                />
+                <button
+                  onClick={async () => {
+                    if (adminPin.length !== 4) return alert('숫자 4자리를 입력해주세요.');
+                    setSavingAdminPin(true);
+                    const { setAdminPin: saveAdminPinAction } = await import('./actions');
+                    const res = await saveAdminPinAction(adminPin);
+                    setSavingAdminPin(false);
+                    if (res.success) {
+                      alert('어드민 페이지 비밀번호가 변경되었습니다.');
+                      setAdminPin('');
+                    } else {
+                      alert(res.error);
+                    }
+                  }}
+                  disabled={savingAdminPin}
+                  className="bg-gray-900 hover:bg-black disabled:bg-gray-400 text-white font-bold px-5 rounded-xl transition-colors whitespace-nowrap shrink-0 text-sm sm:text-base"
+                >
+                  {savingAdminPin ? '저장 중...' : '변경 저장'}
+                </button>
+              </div>
             </div>
           </div>
         )}
