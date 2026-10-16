@@ -724,7 +724,7 @@ export default function FinancesAdminPage() {
                   <h2 className="text-base sm:text-lg font-extrabold text-indigo-900 flex items-center gap-1.5 whitespace-nowrap">
                     <span>📊</span> 토탈 현황
                   </h2>
-                  <p className="text-[11px] text-gray-400 mt-0.5">현재까지 누적 매출 · 매입 · 지출 정산</p>
+                  <p className="text-xs text-gray-400 mt-0.5">현재까지 누적 매출 · 매입 · 지출 정산</p>
                 </div>
                 <button
                   type="button"
@@ -738,7 +738,7 @@ export default function FinancesAdminPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="flex sm:flex-col items-center sm:items-stretch justify-between gap-2 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
-                  <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap shrink-0 flex items-center gap-1.5">
+                  <label className="text-[13px] sm:text-sm font-bold text-gray-700 whitespace-nowrap shrink-0 flex items-center gap-1.5">
                     <span className="w-5 h-5 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black">+</span>
                     현재까지 매출
                   </label>
@@ -749,14 +749,14 @@ export default function FinancesAdminPage() {
                       placeholder="0"
                       value={cumSales}
                       onChange={e => setCumSales(formatAmountInput(e.target.value))}
-                      className="w-full py-2 pl-3 pr-7 bg-white border border-gray-200 rounded-xl text-right font-bold text-sm text-blue-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full py-2 pl-3 pr-7 bg-white border border-gray-200 rounded-xl text-right font-bold text-[15px] text-blue-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
-                    <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">원</span>
+                    <span className="absolute right-2.5 top-2.5 text-xs font-bold text-gray-400">원</span>
                   </div>
                 </div>
 
                 <div className="flex sm:flex-col items-center sm:items-stretch justify-between gap-2 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
-                  <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap shrink-0 flex items-center gap-1.5">
+                  <label className="text-[13px] sm:text-sm font-bold text-gray-700 whitespace-nowrap shrink-0 flex items-center gap-1.5">
                     <span className="w-5 h-5 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center text-xs font-black">−</span>
                     매입
                   </label>
@@ -767,14 +767,14 @@ export default function FinancesAdminPage() {
                       placeholder="0"
                       value={cumPurchases}
                       onChange={e => setCumPurchases(formatAmountInput(e.target.value))}
-                      className="w-full py-2 pl-3 pr-7 bg-white border border-gray-200 rounded-xl text-right font-bold text-sm text-orange-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full py-2 pl-3 pr-7 bg-white border border-gray-200 rounded-xl text-right font-bold text-[15px] text-orange-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
-                    <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">원</span>
+                    <span className="absolute right-2.5 top-2.5 text-xs font-bold text-gray-400">원</span>
                   </div>
                 </div>
 
                 <div className="flex sm:flex-col items-center sm:items-stretch justify-between gap-2 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
-                  <label className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap shrink-0 flex items-center gap-1.5">
+                  <label className="text-[13px] sm:text-sm font-bold text-gray-700 whitespace-nowrap shrink-0 flex items-center gap-1.5">
                     <span className="w-5 h-5 rounded-md bg-red-50 text-red-600 flex items-center justify-center text-xs font-black">−</span>
                     지출
                   </label>
@@ -785,19 +785,19 @@ export default function FinancesAdminPage() {
                       placeholder="0"
                       value={cumExpenses}
                       onChange={e => setCumExpenses(formatAmountInput(e.target.value))}
-                      className="w-full py-2 pl-3 pr-7 bg-white border border-gray-200 rounded-xl text-right font-bold text-sm text-red-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full py-2 pl-3 pr-7 bg-white border border-gray-200 rounded-xl text-right font-bold text-[15px] text-red-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
-                    <span className="absolute right-2.5 top-2 text-xs font-bold text-gray-400">원</span>
+                    <span className="absolute right-2.5 top-2.5 text-xs font-bold text-gray-400">원</span>
                   </div>
                 </div>
               </div>
 
               <div className="mt-3.5 pt-3 border-t border-indigo-100 bg-indigo-50/70 px-3.5 py-3 rounded-xl flex justify-between items-center gap-2">
                 <div>
-                  <span className="text-xs sm:text-sm font-extrabold text-indigo-900 whitespace-nowrap block">토탈 현잔고</span>
-                  <span className="text-[10px] text-indigo-500 font-semibold whitespace-nowrap">현재까지 매출 − 매입 − 지출</span>
+                  <span className="text-[13px] sm:text-sm font-extrabold text-indigo-900 whitespace-nowrap block">토탈 현잔고</span>
+                  <span className="text-[11px] text-indigo-500 font-semibold whitespace-nowrap">현재까지 매출 − 매입 − 지출</span>
                 </div>
-                <span className={`text-base sm:text-xl font-black whitespace-nowrap ${cumTotalBalance >= 0 ? 'text-indigo-700' : 'text-red-600'}`}>
+                <span className={`text-[17px] sm:text-xl font-black whitespace-nowrap ${cumTotalBalance >= 0 ? 'text-indigo-700' : 'text-red-600'}`}>
                   {formatNumber(cumTotalBalance)} <span className="text-xs sm:text-sm font-bold">원</span>
                 </span>
               </div>
@@ -810,7 +810,7 @@ export default function FinancesAdminPage() {
                   <h2 className="text-base sm:text-lg font-extrabold text-amber-900 flex items-center gap-1.5 whitespace-nowrap">
                     <span>💳</span> 차입 · 상환 현황
                   </h2>
-                  <p className="text-[11px] text-gray-400 mt-0.5">차입 항목과 상환 항목을 직접 추가하여 남은 잔금을 관리합니다.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">차입 항목과 상환 항목을 직접 추가하여 남은 잔금을 관리합니다.</p>
                 </div>
                 <button
                   type="button"
@@ -826,7 +826,7 @@ export default function FinancesAdminPage() {
                 {/* 좌측: 차입 내역 */}
                 <div className="bg-amber-50/40 rounded-xl border border-amber-100 p-3.5 flex flex-col">
                   <div className="flex justify-between items-center gap-2 mb-3">
-                    <h3 className="text-sm sm:text-base font-extrabold text-amber-900 flex items-center gap-1.5 whitespace-nowrap">
+                    <h3 className="text-[15px] sm:text-base font-extrabold text-amber-900 flex items-center gap-1.5 whitespace-nowrap">
                       <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-black">借</span>
                       차입 내역 ({borrowItems.length}건)
                     </h3>
@@ -847,7 +847,7 @@ export default function FinancesAdminPage() {
                           placeholder="차입처/내용"
                           value={item.name}
                           onChange={e => updateBorrowItem(i, 'name', e.target.value)}
-                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-[15px]"
                         />
                         <input
                           type="text"
@@ -855,7 +855,7 @@ export default function FinancesAdminPage() {
                           placeholder="차입 금액"
                           value={item.amount}
                           onChange={e => updateBorrowItem(i, 'amount', e.target.value)}
-                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-right text-sm font-semibold"
+                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-right text-[15px] font-semibold"
                         />
                         <button
                           type="button"
@@ -868,7 +868,7 @@ export default function FinancesAdminPage() {
                     ))}
                   </div>
 
-                  <div className="mt-3 pt-2.5 border-t border-amber-200/70 flex justify-between items-center font-bold text-sm sm:text-base whitespace-nowrap">
+                  <div className="mt-3 pt-2.5 border-t border-amber-200/70 flex justify-between items-center font-bold text-[15px] sm:text-base whitespace-nowrap">
                     <span className="text-gray-700">차입 합계:</span>
                     <span className="text-amber-800">{formatNumber(totalBorrowed)} 원</span>
                   </div>
@@ -877,7 +877,7 @@ export default function FinancesAdminPage() {
                 {/* 우측: 상환 내역 */}
                 <div className="bg-emerald-50/40 rounded-xl border border-emerald-100 p-3.5 flex flex-col">
                   <div className="flex justify-between items-center gap-2 mb-3">
-                    <h3 className="text-sm sm:text-base font-extrabold text-emerald-900 flex items-center gap-1.5 whitespace-nowrap">
+                    <h3 className="text-[15px] sm:text-base font-extrabold text-emerald-900 flex items-center gap-1.5 whitespace-nowrap">
                       <span className="w-5 h-5 rounded-md bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-black">還</span>
                       상환 내역 ({repayItems.length}건)
                     </h3>
@@ -898,7 +898,7 @@ export default function FinancesAdminPage() {
                           placeholder="상환처/내용"
                           value={item.name}
                           onChange={e => updateRepayItem(i, 'name', e.target.value)}
-                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-sm"
+                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-[15px]"
                         />
                         <input
                           type="text"
@@ -906,7 +906,7 @@ export default function FinancesAdminPage() {
                           placeholder="상환 금액"
                           value={item.amount}
                           onChange={e => updateRepayItem(i, 'amount', e.target.value)}
-                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-right text-sm font-semibold text-emerald-700"
+                          className="w-1/2 p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-right text-[15px] font-semibold text-emerald-700"
                         />
                         <button
                           type="button"
@@ -919,7 +919,7 @@ export default function FinancesAdminPage() {
                     ))}
                   </div>
 
-                  <div className="mt-3 pt-2.5 border-t border-emerald-200/70 flex justify-between items-center font-bold text-sm sm:text-base whitespace-nowrap">
+                  <div className="mt-3 pt-2.5 border-t border-emerald-200/70 flex justify-between items-center font-bold text-[15px] sm:text-base whitespace-nowrap">
                     <span className="text-gray-700">상환 합계:</span>
                     <span className="text-emerald-700">{formatNumber(totalRepaid)} 원</span>
                   </div>
@@ -928,7 +928,7 @@ export default function FinancesAdminPage() {
 
               {totalBorrowed > 0 && (
                 <div className="mt-3.5 px-1">
-                  <div className="flex justify-between text-[11px] font-bold text-gray-500 mb-1">
+                  <div className="flex justify-between text-xs font-bold text-gray-500 mb-1">
                     <span>상환 진행률</span>
                     <span className="text-emerald-600">
                       {Math.min(100, Math.round((totalRepaid / totalBorrowed) * 100))}% 완료
@@ -947,10 +947,10 @@ export default function FinancesAdminPage() {
 
               <div className="mt-3.5 pt-3 border-t border-amber-200 bg-amber-50/70 px-3.5 py-3 rounded-xl flex justify-between items-center gap-2">
                 <div>
-                  <span className="text-xs sm:text-sm font-extrabold text-amber-900 whitespace-nowrap block">남은 잔금 (미상환 잔액)</span>
-                  <span className="text-[10px] text-amber-600 font-semibold whitespace-nowrap">차입 합계 − 상환 합계</span>
+                  <span className="text-[13px] sm:text-sm font-extrabold text-amber-900 whitespace-nowrap block">남은 잔금 (미상환 잔액)</span>
+                  <span className="text-[11px] text-amber-600 font-semibold whitespace-nowrap">차입 합계 − 상환 합계</span>
                 </div>
-                <span className={`text-base sm:text-xl font-black whitespace-nowrap ${loanRemainingBalance > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                <span className={`text-[17px] sm:text-xl font-black whitespace-nowrap ${loanRemainingBalance > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
                   {formatNumber(loanRemainingBalance)} <span className="text-xs sm:text-sm font-bold">원</span>
                 </span>
               </div>
