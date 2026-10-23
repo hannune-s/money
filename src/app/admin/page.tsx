@@ -1736,26 +1736,26 @@ export default function FinancesAdminPage() {
                         <span className="text-xs font-bold text-gray-400">{itemsInCat.length}개</span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
                         {itemsInCat.map((item) => {
                           const targetUrl = formatExternalUrl(item.url);
                           return (
                             <div
                               key={item.id}
-                              className="bg-white rounded-xl shadow-xs border border-gray-200 px-3.5 py-2.5 flex flex-col justify-between gap-1.5 hover:border-amber-300 transition-all"
+                              className="bg-white rounded-xl shadow-xs border border-gray-200 p-2.5 sm:px-3.5 sm:py-2.5 flex flex-col justify-between gap-1.5 hover:border-amber-300 transition-all min-w-0"
                             >
                               <div>
-                                <div className="flex justify-between items-center gap-1.5">
+                                <div className="flex justify-between items-center gap-1">
                                   <a
                                     href={targetUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 min-w-0 group flex-1"
+                                    className="flex items-center gap-1 min-w-0 group flex-1"
                                   >
-                                    <span className="text-sm font-extrabold text-gray-900 group-hover:text-amber-600 transition-colors truncate">
+                                    <span className="text-[13px] sm:text-sm font-extrabold text-gray-900 group-hover:text-amber-600 transition-colors truncate">
                                       {item.title}
                                     </span>
-                                    <span className="text-[11px] font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-100 px-1.5 py-0.5 rounded shrink-0 transition-colors">
+                                    <span className="text-[10px] sm:text-[11px] font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-100 px-1 sm:px-1.5 py-0.5 rounded shrink-0 transition-colors">
                                       ↗
                                     </span>
                                   </a>
@@ -1763,13 +1763,13 @@ export default function FinancesAdminPage() {
                                   <div className="flex items-center gap-1 shrink-0">
                                     <button
                                       onClick={() => handleEditBookmark(item)}
-                                      className="text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded transition-colors whitespace-nowrap"
+                                      className="text-[10px] sm:text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 sm:px-2 py-0.5 rounded transition-colors whitespace-nowrap"
                                     >
                                       수정
                                     </button>
                                     <button
                                       onClick={() => handleDeleteBookmark(item.id)}
-                                      className="text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition-colors whitespace-nowrap"
+                                      className="text-[10px] sm:text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-1.5 sm:px-2 py-0.5 rounded transition-colors whitespace-nowrap"
                                     >
                                       삭제
                                     </button>
@@ -1777,7 +1777,7 @@ export default function FinancesAdminPage() {
                                 </div>
 
                                 {item.note && (
-                                  <div className="mt-1 bg-gray-50 border border-gray-100 rounded-md px-2 py-1 text-xs text-gray-600 line-clamp-1">
+                                  <div className="mt-1 bg-gray-50 border border-gray-100 rounded-md px-1.5 sm:px-2 py-0.5 sm:py-1 text-[11px] sm:text-xs text-gray-600 line-clamp-1">
                                     {item.note}
                                   </div>
                                 )}
@@ -1787,7 +1787,7 @@ export default function FinancesAdminPage() {
                                 href={targetUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[11px] text-blue-500 hover:underline font-mono truncate block"
+                                className="text-[10px] sm:text-[11px] text-blue-500 hover:underline font-mono truncate block"
                               >
                                 🔗 {item.url}
                               </a>

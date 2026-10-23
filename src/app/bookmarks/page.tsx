@@ -242,8 +242,8 @@ export default function BookmarksSharePage() {
                     <span className="text-xs font-bold text-gray-400">{itemsInCat.length}개</span>
                   </div>
 
-                  {/* 해당 분류의 카드 그리드 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                  {/* 해당 분류의 카드 그리드 (모바일 1줄 2개, PC 1줄 3개) */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5">
                     {itemsInCat.map((item) => {
                       const targetUrl = formatExternalUrl(item.url);
                       return (
@@ -252,26 +252,26 @@ export default function BookmarksSharePage() {
                           href={targetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex flex-col justify-between bg-white hover:bg-amber-50/40 rounded-xl px-3.5 py-2.5 shadow-xs border border-gray-200 hover:border-amber-300 transition-all group"
+                          className="flex flex-col justify-between bg-white hover:bg-amber-50/40 rounded-xl p-2.5 sm:px-3.5 sm:py-2.5 shadow-xs border border-gray-200 hover:border-amber-300 transition-all group min-w-0"
                         >
                           <div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm sm:text-[15px] font-extrabold text-gray-900 group-hover:text-amber-700 transition-colors truncate">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span className="text-[13px] sm:text-[15px] font-extrabold text-gray-900 group-hover:text-amber-700 transition-colors truncate">
                                 {item.title}
                               </span>
-                              <span className="shrink-0 flex items-center justify-center w-6 h-6 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white font-extrabold text-xs transition-colors">
+                              <span className="shrink-0 flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white font-extrabold text-[11px] sm:text-xs transition-colors">
                                 ↗
                               </span>
                             </div>
 
                             {item.note && (
-                              <p className="text-xs text-gray-600 mt-1 line-clamp-1 bg-gray-50 group-hover:bg-white px-2 py-1 rounded-md border border-gray-100">
+                              <p className="text-[11px] sm:text-xs text-gray-600 mt-1 line-clamp-1 bg-gray-50 group-hover:bg-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-gray-100">
                                 {item.note}
                               </p>
                             )}
                           </div>
 
-                          <p className="text-[11px] text-blue-500 font-mono truncate mt-1.5 opacity-80 group-hover:opacity-100">
+                          <p className="text-[10px] sm:text-[11px] text-blue-500 font-mono truncate mt-1.5 opacity-80 group-hover:opacity-100">
                             🔗 {item.url}
                           </p>
                         </a>
