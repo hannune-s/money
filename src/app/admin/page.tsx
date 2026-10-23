@@ -14,8 +14,57 @@ interface AlbaRecord {
   createdAt: string;
 }
 
+interface BookmarkItem {
+  id: string;
+  category?: string;
+  title: string;
+  url: string;
+  note: string;
+  createdAt: string;
+}
+
+const DEFAULT_BOOKMARK_CATEGORIES = [
+  { name: '업무/사업', icon: '💼', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { name: '금융/세무', icon: '🏦', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { name: '쇼핑/구매', icon: '🛒', badgeClass: 'bg-purple-50 text-purple-700 border-purple-200' },
+  { name: '아이/교육', icon: '👶', badgeClass: 'bg-pink-50 text-pink-700 border-pink-200' },
+  { name: '생활/기타', icon: '🏠', badgeClass: 'bg-gray-100 text-gray-700 border-gray-200' },
+];
+
+const getBookmarkCategory = (item: BookmarkItem): string => {
+  if (item.category && item.category.trim()) return item.category.trim();
+  const combined = `${item.title} ${item.note || ''} ${item.url}`.toLowerCase();
+  if (combined.includes('아이') || combined.includes('학부모') || combined.includes('나이스') || combined.includes('학교') || combined.includes('교육')) {
+    return '아이/교육';
+  }
+  if (combined.includes('쇼핑') || combined.includes('쿠팡') || combined.includes('알리') || combined.includes('h&m') || combined.includes('몰')) {
+    return '쇼핑/구매';
+  }
+  if (combined.includes('은행') || combined.includes('뱅킹') || combined.includes('홈택스') || combined.includes('세무') || combined.includes('금융') || combined.includes('카드')) {
+    return '금융/세무';
+  }
+  if (combined.includes('식스샵') || combined.includes('업무') || combined.includes('사업') || combined.includes('배민') || combined.includes('스마트스토어') || combined.includes('포스')) {
+    return '업무/사업';
+  }
+  return '생활/기타';
+};
+
+const getCategoryMeta = (catName: string) => {
+  const found = DEFAULT_BOOKMARK_CATEGORIES.find((c) => c.name === catName);
+  if (found) return found;
+  return { name: catName, icon: '📌', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' };
+};
+
 const ALBA_STORAGE_DATE = '1970-01-01';
 const TOTAL_SUMMARY_STORAGE_DATE = '1970-01-03';
+const BOOKMARK_STORAGE_DATE = '1970-01-04';
+
+const formatExternalUrl = (rawUrl: string) => {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return '#';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
 
 export default function FinancesAdminPage() {
   const defaultAccounts = [
@@ -37,7 +86,7 @@ export default function FinancesAdminPage() {
   const [checkingLoginPin, setCheckingLoginPin] = useState(false);
 
   // 네비게이션 및 메뉴 상태
-  const [activeMenu, setActiveMenu] = useState<'finance' | 'alba' | 'password'>('finance');
+  const [activeMenu, setActiveMenu] = useState<'finance' | 'alba' | 'bookmark' | 'password'>('finance');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // [1] 일일 자금 현황 상태
@@ -74,6 +123,18 @@ export default function FinancesAdminPage() {
   const [albaSearch, setAlbaSearch] = useState('');
   const [albaLoading, setAlbaLoading] = useState(false);
   const [editingAlbaId, setEditingAlbaId] = useState<string | null>(null);
+
+  // [2-2] 북마크 상태
+  const [bookmarkList, setBookmarkList] = useState<BookmarkItem[]>([]);
+  const [bmCategory, setBmCategory] = useState('업무/사업');
+  const [bmCustomCategory, setBmCustomCategory] = useState('');
+  const [bmFilterCategory, setBmFilterCategory] = useState('전체');
+  const [bmTitle, setBmTitle] = useState('');
+  const [bmUrl, setBmUrl] = useState('');
+  const [bmNote, setBmNote] = useState('');
+  const [bmSearch, setBmSearch] = useState('');
+  const [bmLoading, setBmLoading] = useState(false);
+  const [editingBmId, setEditingBmId] = useState<string | null>(null);
 
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
   const parseNumber = (str: string) => parseInt(str.toString().replace(/,/g, '') || '0', 10);
@@ -158,6 +219,7 @@ export default function FinancesAdminPage() {
 
   useEffect(() => {
     loadAlbaRecords();
+    loadBookmarkRecords();
     loadTotalSummary();
   }, []);
 
@@ -518,6 +580,156 @@ export default function FinancesAdminPage() {
     return 'bg-red-100 text-red-800 border-red-200';
   };
 
+  // --- [2-2] 북마크 데이터 불러오기 및 저장 로직 ---
+  const loadBookmarkRecords = async () => {
+    try {
+      const { data } = await supabase
+        .from('money_finances')
+        .select('memo')
+        .eq('target_date', BOOKMARK_STORAGE_DATE)
+        .single();
+
+      if (data && data.memo) {
+        const parsed = JSON.parse(data.memo);
+        if (Array.isArray(parsed)) {
+          setBookmarkList(parsed);
+          return;
+        }
+      }
+      const local = localStorage.getItem('money_bookmarks');
+      if (local) setBookmarkList(JSON.parse(local));
+    } catch {
+      const local = localStorage.getItem('money_bookmarks');
+      if (local) setBookmarkList(JSON.parse(local));
+    }
+  };
+
+  const saveBookmarkRecordsToDb = async (updatedList: BookmarkItem[]) => {
+    setBookmarkList(updatedList);
+    localStorage.setItem('money_bookmarks', JSON.stringify(updatedList));
+    setBmLoading(true);
+    try {
+      await supabase.from('money_finances').upsert(
+        {
+          target_date: BOOKMARK_STORAGE_DATE,
+          accounts: [],
+          expenditures: [],
+          total_account_balance: 0,
+          total_expenditure: 0,
+          final_balance: 0,
+          memo: JSON.stringify(updatedList),
+        },
+        { onConflict: 'target_date' }
+      );
+    } catch (e) {
+      console.error('Failed to sync bookmarks to DB:', e);
+    } finally {
+      setBmLoading(false);
+    }
+  };
+
+  const handleBookmarkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bmTitle.trim() || !bmUrl.trim()) {
+      alert('사이트명과 링크 주소를 입력해주세요.');
+      return;
+    }
+
+    const finalCategory =
+      bmCategory === '직접입력'
+        ? bmCustomCategory.trim() || '생활/기타'
+        : bmCategory;
+    const normalizedUrl = formatExternalUrl(bmUrl);
+
+    if (editingBmId) {
+      const updated = bookmarkList.map((item) =>
+        item.id === editingBmId
+          ? {
+              ...item,
+              category: finalCategory,
+              title: bmTitle.trim(),
+              url: normalizedUrl,
+              note: bmNote.trim(),
+            }
+          : item
+      );
+      await saveBookmarkRecordsToDb(updated);
+      setEditingBmId(null);
+    } else {
+      const newItem: BookmarkItem = {
+        id: Date.now().toString(),
+        category: finalCategory,
+        title: bmTitle.trim(),
+        url: normalizedUrl,
+        note: bmNote.trim(),
+        createdAt: new Date().toISOString(),
+      };
+      await saveBookmarkRecordsToDb([newItem, ...bookmarkList]);
+    }
+
+    setBmTitle('');
+    setBmUrl('');
+    setBmNote('');
+    if (bmCategory === '직접입력') {
+      setBmCustomCategory('');
+      setBmCategory('업무/사업');
+    }
+  };
+
+  const handleEditBookmark = (item: BookmarkItem) => {
+    setEditingBmId(item.id);
+    const cat = getBookmarkCategory(item);
+    const isPreset = DEFAULT_BOOKMARK_CATEGORIES.some((c) => c.name === cat);
+    if (isPreset) {
+      setBmCategory(cat);
+      setBmCustomCategory('');
+    } else {
+      setBmCategory('직접입력');
+      setBmCustomCategory(cat);
+    }
+    setBmTitle(item.title);
+    setBmUrl(item.url);
+    setBmNote(item.note || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteBookmark = async (id: string) => {
+    if (!confirm('이 북마크를 삭제하시겠습니까?')) return;
+    const updated = bookmarkList.filter((item) => item.id !== id);
+    await saveBookmarkRecordsToDb(updated);
+    if (editingBmId === id) {
+      setEditingBmId(null);
+      setBmTitle('');
+      setBmUrl('');
+      setBmNote('');
+    }
+  };
+
+  const filteredBookmarkList = bookmarkList.filter((item) => {
+    const itemCat = getBookmarkCategory(item);
+    if (bmFilterCategory !== '전체' && itemCat !== bmFilterCategory) return false;
+    if (!bmSearch.trim()) return true;
+    const q = bmSearch.trim().toLowerCase();
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.url.toLowerCase().includes(q) ||
+      itemCat.toLowerCase().includes(q) ||
+      (item.note && item.note.toLowerCase().includes(q))
+    );
+  });
+
+  // 현재 사용중인 모든 카테고리 목록 (기본 카테고리 + 직접 입력된 카테고리)
+  const allBookmarkCategories = [
+    ...DEFAULT_BOOKMARK_CATEGORIES.map((c) => c.name),
+    ...Array.from(
+      new Set(
+        bookmarkList
+          .map((item) => getBookmarkCategory(item))
+          .filter((cat) => !DEFAULT_BOOKMARK_CATEGORIES.some((d) => d.name === cat))
+      )
+    ),
+  ];
+
   if (!isAdminAuthed) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans pb-24">
@@ -572,11 +784,21 @@ export default function FinancesAdminPage() {
                 ? '💸 일일 자금 현황'
                 : activeMenu === 'alba'
                 ? '🚨 알바 근무태도 · 이력 관리'
+                : activeMenu === 'bookmark'
+                ? '🔖 북마크 관리'
                 : '🔒 비밀번호 설정'}
             </span>
           </div>
 
-          <div className="flex items-center shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <a
+              href="/bookmarks"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/70 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
+            >
+              🔖 북마크<span className="hidden sm:inline">&nbsp;공유페이지</span>
+            </a>
             <a
               href="/"
               target="_blank"
@@ -652,6 +874,26 @@ export default function FinancesAdminPage() {
             </div>
             <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0">
               {albaList.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveMenu('bookmark');
+              setIsDrawerOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+              activeMenu === 'bookmark'
+                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-lg shrink-0">🔖</span>
+              <span>북마크</span>
+            </div>
+            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0">
+              {bookmarkList.length}
             </span>
           </button>
 
@@ -1242,6 +1484,329 @@ export default function FinancesAdminPage() {
                 </div>
               )}
             </div>
+          </div>
+        ) : activeMenu === 'bookmark' ? (
+          /* ==================== [메뉴 2-2] 북마크 관리 ==================== */
+          <div className="space-y-4">
+            {/* 북마크 전용 공유화면 바로가기 & 주소 복사 배너 */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div>
+                <h2 className="text-sm sm:text-base font-extrabold text-amber-900 flex items-center gap-1.5">
+                  <span>🔖</span> 북마크 전용 공유 페이지
+                </h2>
+                <p className="text-xs text-amber-700 mt-0.5 break-keep">
+                  장부 내용 없이 등록된 북마크 목록만 깔끔하게 보이고 클릭 시 바로 사이트로 이동하는 전용 공유 화면입니다.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const shareUrl = `${window.location.origin}/bookmarks`;
+                    navigator.clipboard.writeText(shareUrl);
+                    alert(`북마크 공유 주소가 복사되었습니다!\n${shareUrl}`);
+                  }}
+                  className="px-3 py-2 bg-white hover:bg-amber-100/60 text-amber-800 border border-amber-300 rounded-xl text-xs font-extrabold transition-colors whitespace-nowrap shadow-xs"
+                >
+                  📋 공유주소 복사
+                </button>
+                <a
+                  href="/bookmarks"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-extrabold transition-colors whitespace-nowrap shadow-xs"
+                >
+                  🔗 북마크 공유화면 열기 ↗
+                </a>
+              </div>
+            </div>
+
+            {/* 북마크 등록 / 수정 폼 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-2 mb-3.5 pb-2.5 border-b border-gray-100">
+                <div>
+                  <h2 className="text-base sm:text-lg font-extrabold text-gray-900 break-keep">
+                    {editingBmId ? '✏️ 북마크 수정하기' : '➕ 새 북마크 등록하기'}
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5 break-keep">
+                    분류(업무/금융/쇼핑/아이 등)를 선택하고 사이트명·링크를 입력하면 항목별로 깔끔하게 정리됩니다.
+                  </p>
+                </div>
+                {editingBmId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingBmId(null);
+                      setBmCategory('업무/사업');
+                      setBmCustomCategory('');
+                      setBmTitle('');
+                      setBmUrl('');
+                      setBmNote('');
+                    }}
+                    className="text-xs font-bold text-gray-500 hover:text-gray-800 bg-gray-100 px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0"
+                  >
+                    수정 취소
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleBookmarkSubmit} className="space-y-3.5">
+                {/* 분류(카테고리) 선택 */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-gray-700">
+                    분류 선택 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {DEFAULT_BOOKMARK_CATEGORIES.map((cat) => {
+                      const isSelected = bmCategory === cat.name;
+                      return (
+                        <button
+                          key={cat.name}
+                          type="button"
+                          onClick={() => setBmCategory(cat.name)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                              : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>{cat.icon}</span>
+                          <span>{cat.name}</span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setBmCategory('직접입력')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${
+                        bmCategory === '직접입력'
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                          : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      <span>➕</span>
+                      <span>직접입력</span>
+                    </button>
+                  </div>
+
+                  {bmCategory === '직접입력' && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="새 분류명 입력 (예: 부동산, 취미/운동, 거래처 등)"
+                      value={bmCustomCategory}
+                      onChange={(e) => setBmCustomCategory(e.target.value)}
+                      className="mt-1 w-full sm:w-72 p-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs sm:text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-gray-700">
+                      사이트명 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="예: 국세청 홈택스, 나이스학부모, 식스샵 등"
+                      value={bmTitle}
+                      onChange={(e) => setBmTitle(e.target.value)}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-gray-700">
+                      링크 주소 (URL) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="예: https://www.hometax.go.kr"
+                      value={bmUrl}
+                      onChange={(e) => setBmUrl(e.target.value)}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-gray-700">기타 비고 (선택)</label>
+                  <input
+                    type="text"
+                    placeholder="예: 아이 학교사이트 / 매월 10일 세금계산서 발행용 등"
+                    value={bmNote}
+                    onChange={(e) => setBmNote(e.target.value)}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={bmLoading}
+                  className="w-full py-3 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-sm transition-all text-sm sm:text-base whitespace-nowrap"
+                >
+                  {bmLoading ? '저장 중...' : editingBmId ? '💾 북마크 수정 내용 저장하기' : '➕ 북마크 추가하기'}
+                </button>
+              </form>
+            </div>
+
+            {/* 북마크 검색바 + 카테고리 필터 탭 */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={bmSearch}
+                    onChange={(e) => setBmSearch(e.target.value)}
+                    placeholder="사이트명, 분류, 링크 주소, 비고 내용으로 검색..."
+                    className="w-full pl-9 pr-8 py-2 bg-gray-100 rounded-lg text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <span className="absolute left-3 top-2 text-gray-400 text-sm">🔍</span>
+                  {bmSearch && (
+                    <button
+                      onClick={() => setBmSearch('')}
+                      className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 font-bold text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <div className="text-xs font-bold text-gray-500 px-1 shrink-0 whitespace-nowrap">
+                  표시 <span className="text-amber-600">{filteredBookmarkList.length}</span>개 / 전체 {bookmarkList.length}개
+                </div>
+              </div>
+
+              {/* 카테고리 필터 버튼 */}
+              <div className="flex flex-wrap gap-1.5 pt-1 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setBmFilterCategory('전체')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    bmFilterCategory === '전체'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  전체 ({bookmarkList.length})
+                </button>
+                {allBookmarkCategories.map((catName) => {
+                  const count = bookmarkList.filter((b) => getBookmarkCategory(b) === catName).length;
+                  if (count === 0 && !DEFAULT_BOOKMARK_CATEGORIES.some((d) => d.name === catName)) return null;
+                  const meta = getCategoryMeta(catName);
+                  const isActive = bmFilterCategory === catName;
+                  return (
+                    <button
+                      key={catName}
+                      type="button"
+                      onClick={() => setBmFilterCategory(catName)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                        isActive
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <span>{meta.icon}</span>
+                      <span>{catName}</span>
+                      <span className={isActive ? 'text-amber-100' : 'text-gray-400'}>({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 분류별 그룹화된 북마크 리스트 (1줄에 2~3개 컴팩트 그리드) */}
+            {filteredBookmarkList.length > 0 ? (
+              <div className="space-y-4">
+                {allBookmarkCategories.map((catName) => {
+                  const itemsInCat = filteredBookmarkList.filter(
+                    (item) => getBookmarkCategory(item) === catName
+                  );
+                  if (itemsInCat.length === 0) return null;
+                  const meta = getCategoryMeta(catName);
+
+                  return (
+                    <div key={catName} className="space-y-2">
+                      <div className="flex items-center gap-2 px-1">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-extrabold border ${meta.badgeClass}`}>
+                          <span>{meta.icon}</span>
+                          <span>{catName}</span>
+                        </span>
+                        <span className="text-xs font-bold text-gray-400">{itemsInCat.length}개</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        {itemsInCat.map((item) => {
+                          const targetUrl = formatExternalUrl(item.url);
+                          return (
+                            <div
+                              key={item.id}
+                              className="bg-white rounded-xl shadow-xs border border-gray-200 px-3.5 py-2.5 flex flex-col justify-between gap-1.5 hover:border-amber-300 transition-all"
+                            >
+                              <div>
+                                <div className="flex justify-between items-center gap-1.5">
+                                  <a
+                                    href={targetUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 min-w-0 group flex-1"
+                                  >
+                                    <span className="text-sm font-extrabold text-gray-900 group-hover:text-amber-600 transition-colors truncate">
+                                      {item.title}
+                                    </span>
+                                    <span className="text-[11px] font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-100 px-1.5 py-0.5 rounded shrink-0 transition-colors">
+                                      ↗
+                                    </span>
+                                  </a>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      onClick={() => handleEditBookmark(item)}
+                                      className="text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded transition-colors whitespace-nowrap"
+                                    >
+                                      수정
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteBookmark(item.id)}
+                                      className="text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition-colors whitespace-nowrap"
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {item.note && (
+                                  <div className="mt-1 bg-gray-50 border border-gray-100 rounded-md px-2 py-1 text-xs text-gray-600 line-clamp-1">
+                                    {item.note}
+                                  </div>
+                                )}
+                              </div>
+
+                              <a
+                                href={targetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[11px] text-blue-500 hover:underline font-mono truncate block"
+                              >
+                                🔗 {item.url}
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
+                <div className="text-2xl mb-1">🔖</div>
+                <div className="text-sm font-semibold">
+                  {bmSearch ? `'${bmSearch}'에 해당하는 북마크가 없습니다.` : '아직 등록된 북마크가 없습니다.'}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           /* ==================== [메뉴 3] 비밀번호 설정 (공유페이지 & 어드민페이지) ==================== */
