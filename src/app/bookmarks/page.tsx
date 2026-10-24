@@ -53,6 +53,17 @@ const formatExternalUrl = (rawUrl: string) => {
   return `https://${trimmed}`;
 };
 
+const getFaviconUrl = (rawUrl: string) => {
+  try {
+    const formatted = formatExternalUrl(rawUrl);
+    const { hostname } = new URL(formatted);
+    if (!hostname) return '';
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
+  } catch {
+    return '';
+  }
+};
+
 export default function BookmarksSharePage() {
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,39 +148,35 @@ export default function BookmarksSharePage() {
   });
 
   return (
-    <main className="min-h-screen bg-gray-50 py-5 px-3 sm:px-5 font-sans">
-      <div className="max-w-4xl mx-auto space-y-4">
-        {/* 상단 헤더 + 카테고리 필터 탭 */}
-        <div className="bg-white rounded-2xl px-4 py-3.5 sm:px-5 sm:py-4 shadow-sm border border-gray-100 space-y-3">
+    <main className="min-h-screen bg-white sm:bg-gray-50/60 py-6 px-3 sm:px-6 font-sans">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* 상단 검색창 + 분류 탭 */}
+        <div className="bg-white sm:rounded-2xl sm:px-5 sm:py-4 sm:shadow-xs sm:border sm:border-gray-100 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-amber-50 text-amber-600 text-lg shrink-0 border border-amber-100">
-                🔖
-              </div>
-              <div>
-                <h1 className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight leading-tight">
-                  공유 북마크 모음
-                </h1>
-                <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
-                  자주 쓰는 사이트를 클릭하면 바로 이동합니다 ({filteredBookmarks.length}개)
-                </p>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🔖</span>
+              <h1 className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight">
+                북마크
+              </h1>
+              <span className="text-xs font-semibold text-gray-400">
+                {filteredBookmarks.length}
+              </span>
             </div>
 
-            {/* 검색창 */}
+            {/* 크롬 스타일 둥근 검색바 */}
             <div className="relative w-full sm:w-72">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="사이트명, 분류, 주소, 비고 검색..."
-                className="w-full pl-8 pr-7 py-2 bg-gray-100 text-gray-800 rounded-xl text-xs sm:text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                placeholder="북마크 검색..."
+                className="w-full pl-9 pr-8 py-2 bg-gray-100 hover:bg-gray-200/60 focus:bg-white text-gray-800 rounded-full text-xs sm:text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 border border-transparent focus:border-amber-300 transition-all"
               />
-              <span className="absolute left-2.5 top-2 text-gray-400 text-sm">🔍</span>
+              <span className="absolute left-3 top-2 text-gray-400 text-sm">🔍</span>
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 font-bold text-xs"
+                  className="absolute right-3 top-2 text-gray-400 hover:text-gray-600 font-bold text-xs"
                   aria-label="검색어 지우기"
                 >
                   ✕
@@ -179,11 +186,11 @@ export default function BookmarksSharePage() {
           </div>
 
           {/* 분류 탭 */}
-          <div className="flex flex-wrap gap-1.5 pt-2.5 border-t border-gray-100">
+          <div className="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100">
             <button
               type="button"
               onClick={() => setSelectedCategory('전체')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                 selectedCategory === '전체'
                   ? 'bg-gray-900 text-white shadow-xs'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -201,7 +208,7 @@ export default function BookmarksSharePage() {
                   key={catName}
                   type="button"
                   onClick={() => setSelectedCategory(catName)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
                     isActive
                       ? 'bg-amber-600 text-white shadow-xs'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -216,14 +223,14 @@ export default function BookmarksSharePage() {
           </div>
         </div>
 
-        {/* 분류별 북마크 리스트 (1줄에 2~3개 컴팩트 그리드) */}
+        {/* 크롬 새 탭 바로가기 스타일 아이콘 그리드 */}
         {loading ? (
-          <div className="bg-white rounded-2xl p-8 text-center text-gray-400 border border-gray-100 shadow-sm">
+          <div className="py-16 text-center text-gray-400">
             <div className="animate-spin inline-block w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full mb-2"></div>
-            <p className="text-xs sm:text-sm font-medium">북마크 목록을 불러오는 중입니다...</p>
+            <p className="text-xs sm:text-sm font-medium">북마크 불러오는 중...</p>
           </div>
         ) : filteredBookmarks.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {allCategories.map((catName) => {
               const itemsInCat = filteredBookmarks.filter(
                 (item) => getBookmarkCategory(item) === catName
@@ -232,48 +239,72 @@ export default function BookmarksSharePage() {
               const meta = getCategoryMeta(catName);
 
               return (
-                <section key={catName} className="space-y-2">
+                <section
+                  key={catName}
+                  className="bg-white rounded-2xl p-4 sm:p-5 sm:shadow-xs sm:border sm:border-gray-100"
+                >
                   {/* 분류 섹션 헤더 */}
-                  <div className="flex items-center gap-2 px-1">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-extrabold border ${meta.badgeClass}`}>
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${meta.badgeClass}`}>
                       <span>{meta.icon}</span>
                       <span>{catName}</span>
                     </span>
-                    <span className="text-xs font-bold text-gray-400">{itemsInCat.length}개</span>
+                    <span className="text-xs font-bold text-gray-400">{itemsInCat.length}</span>
                   </div>
 
-                  {/* 해당 분류의 카드 그리드 (모바일 1줄 2개, PC 1줄 3개) */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5">
+                  {/* 크롬 바로가기 스타일 원형 아이콘 + 사이트명 그리드 */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
                     {itemsInCat.map((item) => {
                       const targetUrl = formatExternalUrl(item.url);
+                      const faviconUrl = getFaviconUrl(item.url);
+                      const firstLetter = (item.title || '?').trim().charAt(0).toUpperCase();
+
                       return (
                         <a
                           key={item.id}
                           href={targetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex flex-col justify-between bg-white hover:bg-amber-50/40 rounded-xl p-2.5 sm:px-3.5 sm:py-2.5 shadow-xs border border-gray-200 hover:border-amber-300 transition-all group min-w-0"
+                          title={item.note ? `${item.title} - ${item.note}` : item.title}
+                          className="flex flex-col items-center justify-start p-2.5 sm:p-3 rounded-2xl hover:bg-gray-100/80 active:scale-95 transition-all group text-center min-w-0"
                         >
-                          <div>
-                            <div className="flex items-center justify-between gap-1.5">
-                              <span className="text-[13px] sm:text-[15px] font-extrabold text-gray-900 group-hover:text-amber-700 transition-colors truncate">
-                                {item.title}
+                          {/* 원형 아이콘 영역 (크롬 새 탭 스타일) */}
+                          <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-gray-100 group-hover:bg-white group-hover:shadow-sm border border-gray-200/60 flex items-center justify-center mb-2 transition-all overflow-hidden shrink-0">
+                            {faviconUrl ? (
+                              <img
+                                src={faviconUrl}
+                                alt={item.title}
+                                className="w-6 h-6 sm:w-7 sm:h-7 object-contain rounded-xs"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.style.display = 'none';
+                                  const parent = target.parentElement;
+                                  if (parent && !parent.querySelector('.fallback-initial')) {
+                                    const span = document.createElement('span');
+                                    span.className = 'fallback-initial text-sm font-extrabold text-gray-600';
+                                    span.textContent = firstLetter;
+                                    parent.appendChild(span);
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <span className="text-sm font-extrabold text-gray-600">
+                                {firstLetter}
                               </span>
-                              <span className="shrink-0 flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white font-extrabold text-[11px] sm:text-xs transition-colors">
-                                ↗
-                              </span>
-                            </div>
-
-                            {item.note && (
-                              <p className="text-[11px] sm:text-xs text-gray-600 mt-1 line-clamp-1 bg-gray-50 group-hover:bg-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-gray-100">
-                                {item.note}
-                              </p>
                             )}
                           </div>
 
-                          <p className="text-[10px] sm:text-[11px] text-blue-500 font-mono truncate mt-1.5 opacity-80 group-hover:opacity-100">
-                            🔗 {item.url}
-                          </p>
+                          {/* 사이트 이름 */}
+                          <span className="text-xs sm:text-[13px] font-medium text-gray-800 group-hover:text-black truncate w-full px-0.5">
+                            {item.title}
+                          </span>
+
+                          {/* 비고 (있을 경우에만 작고 은은하게 표시) */}
+                          {item.note && (
+                            <span className="text-[10px] text-gray-400 truncate w-full mt-0.5 px-0.5">
+                              {item.note}
+                            </span>
+                          )}
                         </a>
                       );
                     })}
@@ -283,7 +314,7 @@ export default function BookmarksSharePage() {
             })}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl p-10 text-center text-gray-400 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-10 text-center text-gray-400 border border-gray-100 shadow-xs">
             <div className="text-2xl mb-1.5">📭</div>
             <p className="text-xs sm:text-sm font-semibold">
               {searchTerm ? `'${searchTerm}'에 해당하는 북마크가 없습니다.` : '아직 등록된 북마크가 없습니다.'}

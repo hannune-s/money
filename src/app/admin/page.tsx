@@ -66,6 +66,17 @@ const formatExternalUrl = (rawUrl: string) => {
   return `https://${trimmed}`;
 };
 
+const getFaviconUrl = (rawUrl: string) => {
+  try {
+    const formatted = formatExternalUrl(rawUrl);
+    const { hostname } = new URL(formatted);
+    if (!hostname) return '';
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
+  } catch {
+    return '';
+  }
+};
+
 export default function FinancesAdminPage() {
   const defaultAccounts = [
     { name: '법인계좌', balance: '' },
@@ -1727,70 +1738,83 @@ export default function FinancesAdminPage() {
                   const meta = getCategoryMeta(catName);
 
                   return (
-                    <div key={catName} className="space-y-2">
-                      <div className="flex items-center gap-2 px-1">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-extrabold border ${meta.badgeClass}`}>
+                    <div key={catName} className="bg-white rounded-2xl p-4 shadow-xs border border-gray-100 space-y-3">
+                      <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${meta.badgeClass}`}>
                           <span>{meta.icon}</span>
                           <span>{catName}</span>
                         </span>
-                        <span className="text-xs font-bold text-gray-400">{itemsInCat.length}개</span>
+                        <span className="text-xs font-bold text-gray-400">{itemsInCat.length}</span>
                       </div>
 
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
                         {itemsInCat.map((item) => {
                           const targetUrl = formatExternalUrl(item.url);
+                          const faviconUrl = getFaviconUrl(item.url);
+                          const firstLetter = (item.title || '?').trim().charAt(0).toUpperCase();
+
                           return (
                             <div
                               key={item.id}
-                              className="bg-white rounded-xl shadow-xs border border-gray-200 p-2.5 sm:px-3.5 sm:py-2.5 flex flex-col justify-between gap-1.5 hover:border-amber-300 transition-all min-w-0"
+                              className="flex flex-col items-center justify-between p-2.5 rounded-2xl hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-all group text-center min-w-0"
                             >
-                              <div>
-                                <div className="flex justify-between items-center gap-1">
-                                  <a
-                                    href={targetUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-1 min-w-0 group flex-1"
-                                  >
-                                    <span className="text-[13px] sm:text-sm font-extrabold text-gray-900 group-hover:text-amber-600 transition-colors truncate">
-                                      {item.title}
-                                    </span>
-                                    <span className="text-[10px] sm:text-[11px] font-bold text-blue-600 bg-blue-50 group-hover:bg-blue-100 px-1 sm:px-1.5 py-0.5 rounded shrink-0 transition-colors">
-                                      ↗
-                                    </span>
-                                  </a>
-
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <button
-                                      onClick={() => handleEditBookmark(item)}
-                                      className="text-[10px] sm:text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 sm:px-2 py-0.5 rounded transition-colors whitespace-nowrap"
-                                    >
-                                      수정
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteBookmark(item.id)}
-                                      className="text-[10px] sm:text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-1.5 sm:px-2 py-0.5 rounded transition-colors whitespace-nowrap"
-                                    >
-                                      삭제
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {item.note && (
-                                  <div className="mt-1 bg-gray-50 border border-gray-100 rounded-md px-1.5 sm:px-2 py-0.5 sm:py-1 text-[11px] sm:text-xs text-gray-600 line-clamp-1">
-                                    {item.note}
-                                  </div>
-                                )}
-                              </div>
-
                               <a
                                 href={targetUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[10px] sm:text-[11px] text-blue-500 hover:underline font-mono truncate block"
+                                title={item.note ? `${item.title} - ${item.note}` : item.title}
+                                className="flex flex-col items-center w-full min-w-0"
                               >
-                                🔗 {item.url}
+                                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gray-100 group-hover:bg-white group-hover:shadow-sm border border-gray-200/60 flex items-center justify-center mb-1.5 transition-all overflow-hidden shrink-0">
+                                  {faviconUrl ? (
+                                    <img
+                                      src={faviconUrl}
+                                      alt={item.title}
+                                      className="w-6 h-6 object-contain rounded-xs"
+                                      onError={(e) => {
+                                        const target = e.currentTarget;
+                                        target.style.display = 'none';
+                                        const parent = target.parentElement;
+                                        if (parent && !parent.querySelector('.fallback-initial')) {
+                                          const span = document.createElement('span');
+                                          span.className = 'fallback-initial text-sm font-extrabold text-gray-600';
+                                          span.textContent = firstLetter;
+                                          parent.appendChild(span);
+                                        }
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="text-sm font-extrabold text-gray-600">
+                                      {firstLetter}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <span className="text-xs font-semibold text-gray-800 group-hover:text-black truncate w-full px-0.5">
+                                  {item.title}
+                                </span>
+
+                                {item.note && (
+                                  <span className="text-[10px] text-gray-400 truncate w-full mt-0.5 px-0.5">
+                                    {item.note}
+                                  </span>
+                                )}
                               </a>
+
+                              <div className="flex items-center justify-center gap-1 mt-1.5">
+                                <button
+                                  onClick={() => handleEditBookmark(item)}
+                                  className="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded transition-colors whitespace-nowrap"
+                                >
+                                  수정
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteBookmark(item.id)}
+                                  className="text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-1.5 py-0.5 rounded transition-colors whitespace-nowrap"
+                                >
+                                  삭제
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
