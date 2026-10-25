@@ -14,6 +14,7 @@ interface BookmarkItem {
 
 const DEFAULT_BOOKMARK_CATEGORIES = [
   { name: '업무/사업', icon: '💼', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { name: '주요쇼핑몰', icon: '⭐', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' },
   { name: '금융/세무', icon: '🏦', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   { name: '쇼핑/구매', icon: '🛒', badgeClass: 'bg-purple-50 text-purple-700 border-purple-200' },
   { name: '아이/교육', icon: '👶', badgeClass: 'bg-pink-50 text-pink-700 border-pink-200' },

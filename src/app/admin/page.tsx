@@ -25,6 +25,7 @@ interface BookmarkItem {
 
 const DEFAULT_BOOKMARK_CATEGORIES = [
   { name: '업무/사업', icon: '💼', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { name: '주요쇼핑몰', icon: '⭐', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' },
   { name: '금융/세무', icon: '🏦', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   { name: '쇼핑/구매', icon: '🛒', badgeClass: 'bg-purple-50 text-purple-700 border-purple-200' },
   { name: '아이/교육', icon: '👶', badgeClass: 'bg-pink-50 text-pink-700 border-pink-200' },
@@ -137,6 +138,7 @@ export default function FinancesAdminPage() {
 
   // [2-2] 북마크 상태
   const [bookmarkList, setBookmarkList] = useState<BookmarkItem[]>([]);
+  const [savedCustomCategories, setSavedCustomCategories] = useState<string[]>([]);
   const [bmCategory, setBmCategory] = useState('업무/사업');
   const [bmCustomCategory, setBmCustomCategory] = useState('');
   const [bmFilterCategory, setBmFilterCategory] = useState('전체');
@@ -596,34 +598,49 @@ export default function FinancesAdminPage() {
     try {
       const { data } = await supabase
         .from('money_finances')
-        .select('memo')
+        .select('memo, accounts')
         .eq('target_date', BOOKMARK_STORAGE_DATE)
         .single();
 
-      if (data && data.memo) {
-        const parsed = JSON.parse(data.memo);
-        if (Array.isArray(parsed)) {
-          setBookmarkList(parsed);
-          return;
+      if (data) {
+        if (Array.isArray(data.accounts)) {
+          const customCats = data.accounts.filter((c: any) => typeof c === 'string' && c.trim());
+          setSavedCustomCategories(customCats);
+          localStorage.setItem('money_bookmark_categories', JSON.stringify(customCats));
+        }
+        if (data.memo) {
+          const parsed = JSON.parse(data.memo);
+          if (Array.isArray(parsed)) {
+            setBookmarkList(parsed);
+            return;
+          }
         }
       }
+      const localCats = localStorage.getItem('money_bookmark_categories');
+      if (localCats) setSavedCustomCategories(JSON.parse(localCats));
       const local = localStorage.getItem('money_bookmarks');
       if (local) setBookmarkList(JSON.parse(local));
     } catch {
+      const localCats = localStorage.getItem('money_bookmark_categories');
+      if (localCats) setSavedCustomCategories(JSON.parse(localCats));
       const local = localStorage.getItem('money_bookmarks');
       if (local) setBookmarkList(JSON.parse(local));
     }
   };
 
-  const saveBookmarkRecordsToDb = async (updatedList: BookmarkItem[]) => {
+  const saveBookmarkRecordsToDb = async (
+    updatedList: BookmarkItem[],
+    updatedCustomCats: string[] = savedCustomCategories
+  ) => {
     setBookmarkList(updatedList);
     localStorage.setItem('money_bookmarks', JSON.stringify(updatedList));
+    localStorage.setItem('money_bookmark_categories', JSON.stringify(updatedCustomCats));
     setBmLoading(true);
     try {
       await supabase.from('money_finances').upsert(
         {
           target_date: BOOKMARK_STORAGE_DATE,
-          accounts: [],
+          accounts: updatedCustomCats,
           expenditures: [],
           total_account_balance: 0,
           total_expenditure: 0,
@@ -639,6 +656,53 @@ export default function FinancesAdminPage() {
     }
   };
 
+  // 현재 사용중인 모든 카테고리 목록 (기본 카테고리 + 저장된 커스텀 카테고리 + 북마크에 사용된 카테고리)
+  const allBookmarkCategories = [
+    ...DEFAULT_BOOKMARK_CATEGORIES.map((c) => c.name),
+    ...Array.from(
+      new Set(
+        [
+          ...savedCustomCategories,
+          ...bookmarkList.map((item) => getBookmarkCategory(item)),
+        ].filter((cat) => cat && !DEFAULT_BOOKMARK_CATEGORIES.some((d) => d.name === cat))
+      )
+    ),
+  ];
+
+  const handleSaveCustomCategory = async () => {
+    const trimmed = bmCustomCategory.trim();
+    if (!trimmed) {
+      alert('추가할 분류명을 입력해주세요.');
+      return;
+    }
+    let nextCats = savedCustomCategories;
+    if (
+      !DEFAULT_BOOKMARK_CATEGORIES.some((d) => d.name === trimmed) &&
+      !savedCustomCategories.includes(trimmed)
+    ) {
+      nextCats = [...savedCustomCategories, trimmed];
+      setSavedCustomCategories(nextCats);
+      await saveBookmarkRecordsToDb(bookmarkList, nextCats);
+    }
+    setBmCategory(trimmed);
+    setBmCustomCategory('');
+  };
+
+  const handleDeleteCustomCategory = async (catName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const inUseCount = bookmarkList.filter((b) => getBookmarkCategory(b) === catName).length;
+    if (inUseCount > 0) {
+      alert(`'${catName}' 분류에 등록된 북마크가 ${inUseCount}개 있습니다. 북마크를 먼저 다른 분류로 옮기거나 삭제해주세요.`);
+      return;
+    }
+    if (!confirm(`'${catName}' 분류 버튼을 삭제하시겠습니까?`)) return;
+    const nextCats = savedCustomCategories.filter((c) => c !== catName);
+    setSavedCustomCategories(nextCats);
+    if (bmCategory === catName) setBmCategory('업무/사업');
+    if (bmFilterCategory === catName) setBmFilterCategory('전체');
+    await saveBookmarkRecordsToDb(bookmarkList, nextCats);
+  };
+
   const handleBookmarkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bmTitle.trim() || !bmUrl.trim()) {
@@ -652,6 +716,15 @@ export default function FinancesAdminPage() {
         : bmCategory;
     const normalizedUrl = formatExternalUrl(bmUrl);
 
+    let nextCats = savedCustomCategories;
+    if (
+      !DEFAULT_BOOKMARK_CATEGORIES.some((d) => d.name === finalCategory) &&
+      !savedCustomCategories.includes(finalCategory)
+    ) {
+      nextCats = [...savedCustomCategories, finalCategory];
+      setSavedCustomCategories(nextCats);
+    }
+
     if (editingBmId) {
       const updated = bookmarkList.map((item) =>
         item.id === editingBmId
@@ -664,7 +737,7 @@ export default function FinancesAdminPage() {
             }
           : item
       );
-      await saveBookmarkRecordsToDb(updated);
+      await saveBookmarkRecordsToDb(updated, nextCats);
       setEditingBmId(null);
     } else {
       const newItem: BookmarkItem = {
@@ -675,7 +748,7 @@ export default function FinancesAdminPage() {
         note: bmNote.trim(),
         createdAt: new Date().toISOString(),
       };
-      await saveBookmarkRecordsToDb([newItem, ...bookmarkList]);
+      await saveBookmarkRecordsToDb([newItem, ...bookmarkList], nextCats);
     }
 
     setBmTitle('');
@@ -683,21 +756,15 @@ export default function FinancesAdminPage() {
     setBmNote('');
     if (bmCategory === '직접입력') {
       setBmCustomCategory('');
-      setBmCategory('업무/사업');
+      setBmCategory(finalCategory);
     }
   };
 
   const handleEditBookmark = (item: BookmarkItem) => {
     setEditingBmId(item.id);
     const cat = getBookmarkCategory(item);
-    const isPreset = DEFAULT_BOOKMARK_CATEGORIES.some((c) => c.name === cat);
-    if (isPreset) {
-      setBmCategory(cat);
-      setBmCustomCategory('');
-    } else {
-      setBmCategory('직접입력');
-      setBmCustomCategory(cat);
-    }
+    setBmCategory(cat);
+    setBmCustomCategory('');
     setBmTitle(item.title);
     setBmUrl(item.url);
     setBmNote(item.note || '');
@@ -728,18 +795,6 @@ export default function FinancesAdminPage() {
       (item.note && item.note.toLowerCase().includes(q))
     );
   });
-
-  // 현재 사용중인 모든 카테고리 목록 (기본 카테고리 + 직접 입력된 카테고리)
-  const allBookmarkCategories = [
-    ...DEFAULT_BOOKMARK_CATEGORIES.map((c) => c.name),
-    ...Array.from(
-      new Set(
-        bookmarkList
-          .map((item) => getBookmarkCategory(item))
-          .filter((cat) => !DEFAULT_BOOKMARK_CATEGORIES.some((d) => d.name === cat))
-      )
-    ),
-  ];
 
   if (!isAdminAuthed) {
     return (
@@ -1568,21 +1623,34 @@ export default function FinancesAdminPage() {
                     분류 선택 <span className="text-red-500">*</span>
                   </label>
                   <div className="flex flex-wrap gap-1.5">
-                    {DEFAULT_BOOKMARK_CATEGORIES.map((cat) => {
-                      const isSelected = bmCategory === cat.name;
+                    {allBookmarkCategories.map((catName) => {
+                      const meta = getCategoryMeta(catName);
+                      const isSelected = bmCategory === catName;
+                      const isPreset = DEFAULT_BOOKMARK_CATEGORIES.some((d) => d.name === catName);
                       return (
                         <button
-                          key={cat.name}
+                          key={catName}
                           type="button"
-                          onClick={() => setBmCategory(cat.name)}
+                          onClick={() => setBmCategory(catName)}
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${
                             isSelected
                               ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
                               : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                           }`}
                         >
-                          <span>{cat.icon}</span>
-                          <span>{cat.name}</span>
+                          <span>{meta.icon}</span>
+                          <span>{catName}</span>
+                          {!isPreset && (
+                            <span
+                              onClick={(e) => handleDeleteCustomCategory(catName, e)}
+                              title="이 분류 삭제"
+                              className={`ml-1 px-1 rounded hover:bg-black/10 text-[10px] ${
+                                isSelected ? 'text-amber-100 hover:text-white' : 'text-gray-400 hover:text-red-500'
+                              }`}
+                            >
+                              ✕
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -1601,14 +1669,29 @@ export default function FinancesAdminPage() {
                   </div>
 
                   {bmCategory === '직접입력' && (
-                    <input
-                      type="text"
-                      required
-                      placeholder="새 분류명 입력 (예: 부동산, 취미/운동, 거래처 등)"
-                      value={bmCustomCategory}
-                      onChange={(e) => setBmCustomCategory(e.target.value)}
-                      className="mt-1 w-full sm:w-72 p-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs sm:text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
+                    <div className="mt-1 flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="새 분류명 입력 (예: 주요쇼핑몰, 거래처, 부동산 등)"
+                        value={bmCustomCategory}
+                        onChange={(e) => setBmCustomCategory(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSaveCustomCategory();
+                          }
+                        }}
+                        className="w-full sm:w-72 p-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs sm:text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveCustomCategory}
+                        disabled={bmLoading}
+                        className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs sm:text-sm whitespace-nowrap shadow-xs transition-colors shrink-0"
+                      >
+                        💾 분류 저장
+                      </button>
+                    </div>
                   )}
                 </div>
 
