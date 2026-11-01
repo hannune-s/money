@@ -23,6 +23,17 @@ interface BookmarkItem {
   createdAt: string;
 }
 
+interface EventRecord {
+  id: string;
+  type: 'sent' | 'received'; // 'sent': 내가 한 것(보낸 부조), 'received': 내가 받은 것(받은 부조)
+  date: string;
+  title: string;
+  name: string;
+  amount: number;
+  memo: string;
+  createdAt: string;
+}
+
 const DEFAULT_BOOKMARK_CATEGORIES = [
   { name: '업무/사업', icon: '💼', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200' },
   { name: '주요쇼핑몰', icon: '⭐', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -59,6 +70,7 @@ const getCategoryMeta = (catName: string) => {
 const ALBA_STORAGE_DATE = '1970-01-01';
 const TOTAL_SUMMARY_STORAGE_DATE = '1970-01-03';
 const BOOKMARK_STORAGE_DATE = '1970-01-04';
+const EVENT_STORAGE_DATE = '1970-01-05';
 
 const formatExternalUrl = (rawUrl: string) => {
   const trimmed = rawUrl.trim();
@@ -98,7 +110,7 @@ export default function FinancesAdminPage() {
   const [checkingLoginPin, setCheckingLoginPin] = useState(false);
 
   // 네비게이션 및 메뉴 상태
-  const [activeMenu, setActiveMenu] = useState<'finance' | 'alba' | 'bookmark' | 'password'>('finance');
+  const [activeMenu, setActiveMenu] = useState<'finance' | 'alba' | 'bookmark' | 'event' | 'password'>('finance');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // [1] 일일 자금 현황 상태
@@ -148,6 +160,19 @@ export default function FinancesAdminPage() {
   const [bmSearch, setBmSearch] = useState('');
   const [bmLoading, setBmLoading] = useState(false);
   const [editingBmId, setEditingBmId] = useState<string | null>(null);
+
+  // [2-3] 경조사 관리 상태
+  const [eventList, setEventList] = useState<EventRecord[]>([]);
+  const [evType, setEvType] = useState<'sent' | 'received'>('sent');
+  const [evDate, setEvDate] = useState(getKstDate());
+  const [evTitle, setEvTitle] = useState('');
+  const [evName, setEvName] = useState('');
+  const [evAmount, setEvAmount] = useState('');
+  const [evMemo, setEvMemo] = useState('');
+  const [evSearch, setEvSearch] = useState('');
+  const [evFilterType, setEvFilterType] = useState<'all' | 'sent' | 'received'>('all');
+  const [evLoading, setEvLoading] = useState(false);
+  const [editingEvId, setEditingEvId] = useState<string | null>(null);
 
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
   const parseNumber = (str: string) => parseInt(str.toString().replace(/,/g, '') || '0', 10);
@@ -233,6 +258,7 @@ export default function FinancesAdminPage() {
   useEffect(() => {
     loadAlbaRecords();
     loadBookmarkRecords();
+    loadEventRecords();
     loadTotalSummary();
   }, []);
 
@@ -796,6 +822,178 @@ export default function FinancesAdminPage() {
     );
   });
 
+  // --- [2-3] 경조사 데이터 불러오기 및 저장 로직 ---
+  const loadEventRecords = async () => {
+    // 로컬 캐시 먼저 즉시 반영
+    try {
+      const local = localStorage.getItem('money_events');
+      if (local) {
+        const parsedLocal = JSON.parse(local);
+        if (Array.isArray(parsedLocal)) setEventList(parsedLocal);
+      }
+    } catch {
+      // ignore
+    }
+
+    try {
+      const { data } = await supabase
+        .from('money_finances')
+        .select('memo')
+        .eq('target_date', EVENT_STORAGE_DATE)
+        .single();
+
+      if (data && data.memo) {
+        const parsed = JSON.parse(data.memo);
+        if (Array.isArray(parsed)) {
+          setEventList(parsed);
+          localStorage.setItem('money_events', JSON.stringify(parsed));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const saveEventRecordsToDb = async (updatedList: EventRecord[]) => {
+    setEventList(updatedList);
+    localStorage.setItem('money_events', JSON.stringify(updatedList));
+    setEvLoading(true);
+    try {
+      await supabase.from('money_finances').upsert(
+        {
+          target_date: EVENT_STORAGE_DATE,
+          accounts: [],
+          expenditures: [],
+          total_account_balance: 0,
+          total_expenditure: 0,
+          final_balance: 0,
+          memo: JSON.stringify(updatedList),
+        },
+        { onConflict: 'target_date' }
+      );
+    } catch (e) {
+      console.error('Failed to sync events to DB:', e);
+    } finally {
+      setEvLoading(false);
+    }
+  };
+
+  const handleEventSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const numericAmount = parseNumber(evAmount);
+    if (!evName.trim() || !evTitle.trim() || numericAmount <= 0) {
+      alert('이름, 경조사 제목, 부조금 금액을 모두 입력해주세요.');
+      return;
+    }
+
+    if (editingEvId) {
+      const updated = eventList.map((item) =>
+        item.id === editingEvId
+          ? {
+              ...item,
+              type: evType,
+              date: evDate,
+              title: evTitle.trim(),
+              name: evName.trim(),
+              amount: numericAmount,
+              memo: evMemo.trim(),
+            }
+          : item
+      );
+      await saveEventRecordsToDb(updated);
+      setEditingEvId(null);
+    } else {
+      const newRecord: EventRecord = {
+        id: Date.now().toString(),
+        type: evType,
+        date: evDate,
+        title: evTitle.trim(),
+        name: evName.trim(),
+        amount: numericAmount,
+        memo: evMemo.trim(),
+        createdAt: new Date().toISOString(),
+      };
+      await saveEventRecordsToDb([newRecord, ...eventList]);
+    }
+
+    setEvTitle('');
+    setEvName('');
+    setEvAmount('');
+    setEvMemo('');
+  };
+
+  const handleEditEvent = (record: EventRecord) => {
+    setEditingEvId(record.id);
+    setEvType(record.type);
+    setEvDate(record.date);
+    setEvTitle(record.title);
+    setEvName(record.name);
+    setEvAmount(formatNumber(record.amount));
+    setEvMemo(record.memo || '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    if (!confirm('이 경조사 기록을 삭제하시겠습니까?')) return;
+    const updated = eventList.filter((item) => item.id !== id);
+    await saveEventRecordsToDb(updated);
+    if (editingEvId === id) {
+      setEditingEvId(null);
+      setEvTitle('');
+      setEvName('');
+      setEvAmount('');
+      setEvMemo('');
+    }
+  };
+
+  const filteredEventList = eventList.filter((item) => {
+    if (evFilterType !== 'all' && item.type !== evFilterType) return false;
+    if (!evSearch.trim()) return true;
+    const q = evSearch.trim().toLowerCase();
+    return (
+      item.name.toLowerCase().includes(q) ||
+      item.title.toLowerCase().includes(q) ||
+      item.date.includes(q) ||
+      (item.memo && item.memo.toLowerCase().includes(q))
+    );
+  });
+
+  // 전체 및 검색된 경조사 금액 합계 계산
+  const totalSentAmount = eventList
+    .filter((i) => i.type === 'sent')
+    .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const totalReceivedAmount = eventList
+    .filter((i) => i.type === 'received')
+    .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+
+  // 검색어로 조회했을 때 해당 검색 대상의 보낸 금액 vs 받은 금액(구분 필터 무관하게 전체 비교)
+  const searchMatchedEvents = evSearch.trim()
+    ? eventList.filter((item) => {
+        const q = evSearch.trim().toLowerCase();
+        return (
+          item.name.toLowerCase().includes(q) ||
+          item.title.toLowerCase().includes(q) ||
+          item.date.includes(q) ||
+          (item.memo && item.memo.toLowerCase().includes(q))
+        );
+      })
+    : [];
+  const searchSentTotal = searchMatchedEvents
+    .filter((i) => i.type === 'sent')
+    .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const searchReceivedTotal = searchMatchedEvents
+    .filter((i) => i.type === 'received')
+    .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+
+  // 폼에 이름을 입력할 때 동일 이름의 기존 주고받은 내역 즉시 조회
+  const sameNameEvents = evName.trim()
+    ? eventList.filter(
+        (item) =>
+          item.name.trim().toLowerCase() === evName.trim().toLowerCase() &&
+          item.id !== editingEvId
+      )
+    : [];
+
   if (!isAdminAuthed) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans pb-24">
@@ -852,6 +1050,8 @@ export default function FinancesAdminPage() {
                 ? '🚨 알바 근무태도 · 이력 관리'
                 : activeMenu === 'bookmark'
                 ? '🔖 북마크 관리'
+                : activeMenu === 'event'
+                ? '💌 경조사 부조금 관리'
                 : '🔒 비밀번호 설정'}
             </span>
           </div>
@@ -960,6 +1160,26 @@ export default function FinancesAdminPage() {
             </div>
             <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0">
               {bookmarkList.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveMenu('event');
+              setIsDrawerOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+              activeMenu === 'event'
+                ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-lg shrink-0">💌</span>
+              <span>경조사 관리</span>
+            </div>
+            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0">
+              {eventList.length}
             </span>
           </button>
 
@@ -1914,6 +2134,490 @@ export default function FinancesAdminPage() {
                 </div>
               </div>
             )}
+          </div>
+        ) : activeMenu === 'event' ? (
+          /* ==================== [메뉴 2-3] 경조사 관리 ==================== */
+          <div className="space-y-5 sm:space-y-6">
+            {/* 1. 상단 전체 요약 카드 (보낸 부조 / 받은 부조 / 차액) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+                    📤 내가 한 것 (보낸 부조)
+                  </span>
+                  <span className="text-xs font-bold text-gray-400">
+                    {eventList.filter((i) => i.type === 'sent').length}건
+                  </span>
+                </div>
+                <div className="mt-3 text-xl sm:text-2xl font-black text-blue-700 font-mono">
+                  {formatNumber(totalSentAmount)}
+                  <span className="text-xs sm:text-sm font-bold text-gray-500 ml-1">원</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                    📥 내가 받은 것 (받은 부조)
+                  </span>
+                  <span className="text-xs font-bold text-gray-400">
+                    {eventList.filter((i) => i.type === 'received').length}건
+                  </span>
+                </div>
+                <div className="mt-3 text-xl sm:text-2xl font-black text-emerald-700 font-mono">
+                  {formatNumber(totalReceivedAmount)}
+                  <span className="text-xs sm:text-sm font-bold text-gray-500 ml-1">원</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-lg">
+                    ⚖️ 받은 것 - 내가 한 것
+                  </span>
+                  <span className="text-xs font-bold text-gray-400">총 {eventList.length}건</span>
+                </div>
+                <div
+                  className={`mt-3 text-xl sm:text-2xl font-black font-mono ${
+                    totalReceivedAmount - totalSentAmount > 0
+                      ? 'text-emerald-600'
+                      : totalReceivedAmount - totalSentAmount < 0
+                      ? 'text-blue-600'
+                      : 'text-gray-700'
+                  }`}
+                >
+                  {totalReceivedAmount - totalSentAmount > 0 ? '+' : ''}
+                  {formatNumber(totalReceivedAmount - totalSentAmount)}
+                  <span className="text-xs sm:text-sm font-bold text-gray-500 ml-1">원</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. 경조사 등록 / 수정 폼 */}
+            <form
+              onSubmit={handleEventSubmit}
+              className="bg-white rounded-2xl shadow-sm border border-rose-100 p-4 sm:p-6 space-y-4"
+            >
+              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                <div>
+                  <h2 className="text-base sm:text-lg font-extrabold text-gray-900 flex items-center gap-2">
+                    <span>💌</span>
+                    <span>{editingEvId ? '경조사 내역 수정' : '경조사 부조금 기록하기'}</span>
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    내가 부조한 내역과 부조받은 내역을 기록해 두고 이름으로 쉽게 검색·비교하세요.
+                  </p>
+                </div>
+                {editingEvId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingEvId(null);
+                      setEvTitle('');
+                      setEvName('');
+                      setEvAmount('');
+                      setEvMemo('');
+                    }}
+                    className="text-xs font-bold text-gray-500 hover:text-gray-800 bg-gray-100 px-3 py-1.5 rounded-lg whitespace-nowrap"
+                  >
+                    수정 취소
+                  </button>
+                )}
+              </div>
+
+              {/* 구분 선택: 내가 한 것 vs 내가 받은 것 */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1.5">
+                  구분 선택 *
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setEvType('sent')}
+                    className={`py-3 px-4 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 border-2 transition-all ${
+                      evType === 'sent'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span>📤</span>
+                    <span>내가 한 것 (보낸 부조)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEvType('received')}
+                    className={`py-3 px-4 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 border-2 transition-all ${
+                      evType === 'received'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span>📥</span>
+                    <span>내가 받은 것 (받은 부조)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 날짜 & 이름 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">날짜 *</label>
+                  <input
+                    type="date"
+                    value={evDate}
+                    onChange={(e) => setEvDate(e.target.value)}
+                    className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-rose-500 outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">이름 (상대방 성함) *</label>
+                  <input
+                    type="text"
+                    value={evName}
+                    onChange={(e) => setEvName(e.target.value)}
+                    placeholder="예: 홍길동"
+                    className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-rose-500 outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* 이름 입력 시 기존 주고받은 내역 실시간 알림 */}
+              {sameNameEvents.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-1.5">
+                  <div className="font-extrabold text-amber-900 flex items-center justify-between">
+                    <span>💡 &apos;{evName.trim()}&apos;님 기존 경조사 기록 ({sameNameEvents.length}건)</span>
+                    <button
+                      type="button"
+                      onClick={() => setEvSearch(evName.trim())}
+                      className="text-[11px] font-bold text-amber-800 underline hover:text-amber-950"
+                    >
+                      아래 목록에서 자세히 보기
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {sameNameEvents.map((past) => (
+                      <span
+                        key={past.id}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold border ${
+                          past.type === 'received'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-blue-50 text-blue-800 border-blue-200'
+                        }`}
+                      >
+                        <span>{past.type === 'received' ? '📥 받은 것' : '📤 내가 한 것'}</span>
+                        <span>· {past.date}</span>
+                        <span>· {past.title}</span>
+                        <span className="font-extrabold">{formatNumber(past.amount)}원</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 경조사 제목 (빠른 선택 칩 + 직접 입력) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-600">경조사 제목 *</label>
+                  <span className="text-[11px] text-gray-400">버튼 클릭 또는 직접 입력</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {['결혼식(축의금)', '부고(조의금)', '돌잔치·백일', '생신·환갑·칠순', '개업·이전 축하'].map(
+                    (preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setEvTitle(preset)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${
+                          evTitle === preset
+                            ? 'bg-rose-600 text-white border-rose-600'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    )
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={evTitle}
+                  onChange={(e) => setEvTitle(e.target.value)}
+                  placeholder="예: 결혼식, 장인어른 부고, 첫째 돌잔치 등 직접 입력"
+                  className="w-full p-2.5 border border-gray-300 rounded-xl text-sm text-gray-800 focus:ring-2 focus:ring-rose-500 outline-none"
+                  required
+                />
+              </div>
+
+              {/* 부조금 금액 (빠른 금액 버튼 포함) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-600">부조금 금액 (원) *</label>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { label: '+3만', add: 30000 },
+                      { label: '+5만', add: 50000 },
+                      { label: '+10만', add: 100000 },
+                      { label: '+20만', add: 200000 },
+                      { label: '+30만', add: 300000 },
+                    ].map((btn) => (
+                      <button
+                        key={btn.label}
+                        type="button"
+                        onClick={() => {
+                          const nextVal = parseNumber(evAmount) + btn.add;
+                          setEvAmount(formatNumber(nextVal));
+                        }}
+                        className="px-2 py-0.5 text-[11px] font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setEvAmount('')}
+                      className="px-2 py-0.5 text-[11px] font-bold bg-red-50 hover:bg-red-100 text-red-600 rounded-md transition-colors"
+                    >
+                      초기화
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={evAmount}
+                  onChange={(e) => setEvAmount(formatAmountInput(e.target.value))}
+                  placeholder="예: 100,000"
+                  className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-mono font-extrabold text-gray-900 focus:ring-2 focus:ring-rose-500 outline-none"
+                  required
+                />
+              </div>
+
+              {/* 메모 */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-1">메모 (관계, 참석여부, 계좌전달 등)</label>
+                <input
+                  type="text"
+                  value={evMemo}
+                  onChange={(e) => setEvMemo(e.target.value)}
+                  placeholder="예: 거래처 대표님 / 직접 참석 / 봉투 전달"
+                  className="w-full p-2.5 border border-gray-300 rounded-xl text-sm text-gray-800 focus:ring-2 focus:ring-rose-500 outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={evLoading}
+                className={`w-full py-3.5 text-white font-extrabold rounded-xl shadow-sm transition-colors text-sm sm:text-base ${
+                  editingEvId
+                    ? 'bg-indigo-600 hover:bg-indigo-700'
+                    : evType === 'received'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {evLoading
+                  ? '저장 중...'
+                  : editingEvId
+                  ? '💾 경조사 수정 내용 저장'
+                  : evType === 'received'
+                  ? '📥 내가 받은 부조금 등록하기'
+                  : '📤 내가 한 부조금 등록하기'}
+              </button>
+            </form>
+
+            {/* 3. 검색 및 주고받은 내역 비교 · 리스트 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base sm:text-lg font-extrabold text-gray-900 flex items-center gap-2">
+                    <span>🔍</span>
+                    <span>경조사 내역 검색 및 비교</span>
+                    <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-600">
+                      {filteredEventList.length}건
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    이름을 검색하면 내가 얼마를 받았는지, 얼마를 했는지 바로 비교할 수 있습니다.
+                  </p>
+                </div>
+
+                {/* 구분 필터 탭 */}
+                <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl self-start sm:self-auto">
+                  {[
+                    { key: 'all', label: `전체 (${eventList.length})` },
+                    {
+                      key: 'sent',
+                      label: `📤 내가 한 것 (${eventList.filter((i) => i.type === 'sent').length})`,
+                    },
+                    {
+                      key: 'received',
+                      label: `📥 받은 것 (${eventList.filter((i) => i.type === 'received').length})`,
+                    },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setEvFilterType(tab.key as 'all' | 'sent' | 'received')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                        evFilterType === tab.key
+                          ? 'bg-white text-gray-900 shadow-xs'
+                          : 'text-gray-500 hover:text-gray-800'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 검색 입력창 */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={evSearch}
+                  onChange={(e) => setEvSearch(e.target.value)}
+                  placeholder="🔍 사람 이름, 경조사 제목(결혼, 부고 등), 메모로 검색..."
+                  className="w-full pl-4 pr-20 py-3 bg-gray-50 border border-gray-300 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none"
+                />
+                {evSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setEvSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 hover:text-gray-700 bg-gray-200/70 px-2.5 py-1 rounded-lg"
+                  >
+                    초기화 ✕
+                  </button>
+                )}
+              </div>
+
+              {/* 검색어 입력 시 나타나는 '주고받은 부조금 비교 요약 박스' */}
+              {evSearch.trim() && (
+                <div className="bg-gradient-to-r from-slate-50 to-rose-50/40 border border-rose-200/80 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs sm:text-sm font-extrabold text-gray-900">
+                      📊 &apos;<span className="text-rose-600">{evSearch.trim()}</span>&apos; 검색 결과 주고받은 금액 비교
+                    </span>
+                    <span className="text-xs font-bold text-gray-500">
+                      총 {searchMatchedEvents.length}건 일치
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="bg-white rounded-xl p-3 border border-blue-100 flex items-center justify-between">
+                      <span className="text-xs font-bold text-blue-700">📤 내가 한 것 합계</span>
+                      <span className="text-sm sm:text-base font-black text-blue-700 font-mono">
+                        {formatNumber(searchSentTotal)}원
+                      </span>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-emerald-100 flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-700">📥 내가 받은 것 합계</span>
+                      <span className="text-sm sm:text-base font-black text-emerald-700 font-mono">
+                        {formatNumber(searchReceivedTotal)}원
+                      </span>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-gray-200 flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-700">⚖️ 비교 결과</span>
+                      <span className="text-xs sm:text-sm font-extrabold text-gray-900">
+                        {searchReceivedTotal > searchSentTotal
+                          ? `받은 금액이 ${formatNumber(searchReceivedTotal - searchSentTotal)}원 더 많음`
+                          : searchSentTotal > searchReceivedTotal
+                          ? `내가 한 금액이 ${formatNumber(searchSentTotal - searchReceivedTotal)}원 더 많음`
+                          : '주고받은 금액 동일 (0원)'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 경조사 내역 목록 */}
+              {filteredEventList.length > 0 ? (
+                <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+                  {filteredEventList.map((item) => {
+                    const isReceived = item.type === 'received';
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-3.5 sm:p-4 hover:bg-gray-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-md border ${
+                                isReceived
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                              }`}
+                            >
+                              {isReceived ? '📥 내가 받은 것' : '📤 내가 한 것'}
+                            </span>
+                            <span className="text-xs font-bold text-gray-400 font-mono">
+                              {item.date}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEvSearch(item.name)}
+                              title="클릭하여 이 이름으로 검색 비교"
+                              className="text-sm sm:text-base font-extrabold text-gray-900 hover:text-rose-600 underline decoration-dotted underline-offset-4 transition-colors"
+                            >
+                              {item.name}
+                            </button>
+                            <span className="text-xs sm:text-sm font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md">
+                              {item.title}
+                            </span>
+                          </div>
+
+                          {item.memo && (
+                            <p className="text-xs text-gray-500 break-keep pl-0.5">
+                              📝 {item.memo}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                          <div
+                            className={`text-base sm:text-lg font-black font-mono ${
+                              isReceived ? 'text-emerald-600' : 'text-blue-600'
+                            }`}
+                          >
+                            {isReceived ? '+' : '-'}
+                            {formatNumber(item.amount)}
+                            <span className="text-xs font-bold text-gray-500 ml-0.5">원</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleEditEvent(item)}
+                              className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                            >
+                              수정
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEvent(item.id)}
+                              className="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-12 text-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                  <div className="text-3xl mb-2">💌</div>
+                  <div className="text-sm font-semibold">
+                    {evSearch
+                      ? `'${evSearch}'에 해당하는 경조사 기록이 없습니다.`
+                      : '아직 등록된 경조사 부조금 내역이 없습니다.'}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           /* ==================== [메뉴 3] 비밀번호 설정 (공유페이지 & 어드민페이지) ==================== */
