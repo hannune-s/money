@@ -1035,49 +1035,6 @@ export default function FinancesAdminPage() {
     : [];
 
   // ==================== [2-4] 통합 지출장부 데이터 로드 & 저장 ====================
-  const loadLedgerRecords = async () => {
-    try {
-      const { data } = await supabase
-        .from('money_finances')
-        .select('memo, accounts')
-        .eq('target_date', LEDGER_STORAGE_DATE)
-        .maybeSingle();
-
-      if (data?.memo) {
-        const parsed = JSON.parse(data.memo);
-        if (Array.isArray(parsed)) {
-          setLedgerList(parsed);
-          localStorage.setItem('money_ledger_entries', JSON.stringify(parsed));
-        }
-      } else {
-        const local = localStorage.getItem('money_ledger_entries');
-        if (local) setLedgerList(JSON.parse(local));
-      }
-
-      if (Array.isArray(data?.accounts) && data.accounts.length > 0 && typeof data.accounts[0] === 'object') {
-        const rulesObj = data.accounts[0] as Record<string, string>;
-        setLedgerCustomRules(rulesObj);
-        localStorage.setItem('money_ledger_rules', JSON.stringify(rulesObj));
-      } else {
-        const localRules = localStorage.getItem('money_ledger_rules');
-        if (localRules) setLedgerCustomRules(JSON.parse(localRules));
-      }
-    } catch {
-      const local = localStorage.getItem('money_ledger_entries');
-      if (local) {
-        try {
-          setLedgerList(JSON.parse(local));
-        } catch {}
-      }
-      const localRules = localStorage.getItem('money_ledger_rules');
-      if (localRules) {
-        try {
-          setLedgerCustomRules(JSON.parse(localRules));
-        } catch {}
-      }
-    }
-  };
-
   const saveLedgerRecordsToDb = async (
     newList: LedgerEntry[],
     newRules: Record<string, string> = ledgerCustomRules
@@ -1085,26 +1042,99 @@ export default function FinancesAdminPage() {
     localStorage.setItem('money_ledger_entries', JSON.stringify(newList));
     localStorage.setItem('money_ledger_rules', JSON.stringify(newRules));
 
-    const { data: existing } = await supabase
-      .from('money_finances')
-      .select('id')
-      .eq('target_date', LEDGER_STORAGE_DATE)
-      .maybeSingle();
-
     const payload = {
       target_date: LEDGER_STORAGE_DATE,
       accounts: [newRules],
       expenditures: [],
-      total_accounts: 0,
-      total_expenditures: 0,
+      total_account_balance: 0,
+      total_expenditure: 0,
       final_balance: 0,
       memo: JSON.stringify(newList),
     };
 
-    if (existing?.id) {
-      await supabase.from('money_finances').update(payload).eq('id', existing.id);
-    } else {
-      await supabase.from('money_finances').insert([payload]);
+    const { error } = await supabase
+      .from('money_finances')
+      .upsert(payload, { onConflict: 'target_date' });
+
+    if (error) {
+      console.error('Failed to sync ledger to DB:', error);
+    }
+  };
+
+  const loadLedgerRecords = async () => {
+    let localEntries: LedgerEntry[] = [];
+    let localRules: Record<string, string> = {};
+
+    try {
+      const rawLocal = localStorage.getItem('money_ledger_entries');
+      if (rawLocal) {
+        const parsedLocal = JSON.parse(rawLocal);
+        if (Array.isArray(parsedLocal)) {
+          localEntries = parsedLocal;
+          setLedgerList(parsedLocal);
+        }
+      }
+      const rawRules = localStorage.getItem('money_ledger_rules');
+      if (rawRules) {
+        const parsedRules = JSON.parse(rawRules);
+        if (parsedRules && typeof parsedRules === 'object') {
+          localRules = parsedRules;
+          setLedgerCustomRules(parsedRules);
+        }
+      }
+    } catch {}
+
+    try {
+      const { data } = await supabase
+        .from('money_finances')
+        .select('memo, accounts')
+        .eq('target_date', LEDGER_STORAGE_DATE)
+        .maybeSingle();
+
+      let dbEntries: LedgerEntry[] = [];
+      if (data?.memo) {
+        const parsed = JSON.parse(data.memo);
+        if (Array.isArray(parsed)) {
+          dbEntries = parsed;
+        }
+      }
+
+      let dbRules: Record<string, string> = {};
+      if (Array.isArray(data?.accounts) && data.accounts.length > 0 && typeof data.accounts[0] === 'object') {
+        dbRules = data.accounts[0] as Record<string, string>;
+      }
+
+      // PC 로컬스토리지에 이미 입력된 내역이 DB보다 많으면 자동 병합 후 DB에 즉시 업로드 동기화
+      if (localEntries.length > 0 && dbEntries.length === 0) {
+        const mergedRules = { ...localRules, ...dbRules };
+        setLedgerList(localEntries);
+        setLedgerCustomRules(mergedRules);
+        await saveLedgerRecordsToDb(localEntries, mergedRules);
+      } else if (dbEntries.length > 0) {
+        // ID 기준 병합 (로컬에만 있던 항목이 있으면 누락 없이 합침)
+        const mapById = new Map<string, LedgerEntry>();
+        dbEntries.forEach((item) => mapById.set(item.id, item));
+        let hasLocalOnly = false;
+        localEntries.forEach((item) => {
+          if (!mapById.has(item.id)) {
+            mapById.set(item.id, item);
+            hasLocalOnly = true;
+          }
+        });
+        const mergedList = Array.from(mapById.values()).sort((a, b) =>
+          b.date.localeCompare(a.date)
+        );
+        const mergedRules = { ...localRules, ...dbRules };
+        setLedgerList(mergedList);
+        setLedgerCustomRules(mergedRules);
+        localStorage.setItem('money_ledger_entries', JSON.stringify(mergedList));
+        localStorage.setItem('money_ledger_rules', JSON.stringify(mergedRules));
+        if (hasLocalOnly) {
+          await saveLedgerRecordsToDb(mergedList, mergedRules);
+        }
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -1198,7 +1228,7 @@ export default function FinancesAdminPage() {
     setLgCostType(item.costType);
     setLgDescription(item.description);
     setLgAmount(formatNumber(item.amount));
-    setLgManualCategory(item.category);
+    setLgManualCategory(item.category === '기타지출' ? '' : item.category);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

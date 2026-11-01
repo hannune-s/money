@@ -162,10 +162,15 @@ export function autoClassifyLedgerCategory(
   const clean = description.trim().toLowerCase();
   if (!clean) return '기타지출';
 
-  // 1. 사용자가 직접 지정해 기억된 키워드 규칙 우선 적용
+  // 1. 사용자가 직접 지정해 기억된 키워드 규칙 우선 적용 ('기타지출'로 잘못 저장된 규칙은 제외)
   const ruleKeys = Object.keys(customRules).sort((a, b) => b.length - a.length);
   for (const key of ruleKeys) {
-    if (key && clean.includes(key.toLowerCase())) {
+    if (
+      key &&
+      customRules[key] &&
+      customRules[key] !== '기타지출' &&
+      clean.includes(key.toLowerCase())
+    ) {
       return customRules[key];
     }
   }
