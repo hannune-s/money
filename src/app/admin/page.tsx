@@ -2,6 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import {
+  LEDGER_STORAGE_DATE,
+  LedgerEntry,
+  LedgerScope,
+  LedgerCostType,
+  LEDGER_CATEGORIES,
+  getLedgerCategoryMeta,
+  autoClassifyLedgerCategory,
+} from '@/lib/ledger';
 
 interface AlbaRecord {
   id: string;
@@ -110,7 +119,7 @@ export default function FinancesAdminPage() {
   const [checkingLoginPin, setCheckingLoginPin] = useState(false);
 
   // 네비게이션 및 메뉴 상태
-  const [activeMenu, setActiveMenu] = useState<'finance' | 'alba' | 'bookmark' | 'event' | 'password'>('finance');
+  const [activeMenu, setActiveMenu] = useState<'finance' | 'alba' | 'bookmark' | 'event' | 'ledger' | 'password'>('finance');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // [1] 일일 자금 현황 상태
@@ -174,6 +183,22 @@ export default function FinancesAdminPage() {
   const [evLoading, setEvLoading] = useState(false);
   const [editingEvId, setEditingEvId] = useState<string | null>(null);
 
+  // [2-4] 통합 지출장부 상태 (매장 지출 / 집 지출 / 매장 수입 + 자동 항목 분류)
+  const [ledgerList, setLedgerList] = useState<LedgerEntry[]>([]);
+  const [ledgerCustomRules, setLedgerCustomRules] = useState<Record<string, string>>({});
+  const [lgDate, setLgDate] = useState(getKstDate());
+  const [lgScope, setLgScope] = useState<LedgerScope>('store');
+  const [lgCostType, setLgCostType] = useState<LedgerCostType>('variable');
+  const [lgDescription, setLgDescription] = useState('');
+  const [lgAmount, setLgAmount] = useState('');
+  const [lgManualCategory, setLgManualCategory] = useState(''); // 비어 있으면 자동 분류
+  const [lgRememberRule, setLgRememberRule] = useState(true);
+  const [lgSearch, setLgSearch] = useState('');
+  const [lgFilterScope, setLgFilterScope] = useState<'all' | LedgerScope>('all');
+  const [lgCurrentPage, setLgCurrentPage] = useState(1);
+  const [lgLoading, setLgLoading] = useState(false);
+  const [editingLgId, setEditingLgId] = useState<string | null>(null);
+
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
   const parseNumber = (str: string) => parseInt(str.toString().replace(/,/g, '') || '0', 10);
   const formatAmountInput = (val: string) => {
@@ -234,6 +259,20 @@ export default function FinancesAdminPage() {
     if (sessionStorage.getItem('money_admin_authed') === 'true') {
       setIsAdminAuthed(true);
     }
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const menuParam = params.get('menu');
+      if (
+        menuParam === 'ledger' ||
+        menuParam === 'event' ||
+        menuParam === 'bookmark' ||
+        menuParam === 'alba' ||
+        menuParam === 'finance' ||
+        menuParam === 'password'
+      ) {
+        setActiveMenu(menuParam);
+      }
+    }
   }, []);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
@@ -259,6 +298,7 @@ export default function FinancesAdminPage() {
     loadAlbaRecords();
     loadBookmarkRecords();
     loadEventRecords();
+    loadLedgerRecords();
     loadTotalSummary();
   }, []);
 
@@ -994,6 +1034,201 @@ export default function FinancesAdminPage() {
       )
     : [];
 
+  // ==================== [2-4] 통합 지출장부 데이터 로드 & 저장 ====================
+  const loadLedgerRecords = async () => {
+    try {
+      const { data } = await supabase
+        .from('money_finances')
+        .select('memo, accounts')
+        .eq('target_date', LEDGER_STORAGE_DATE)
+        .maybeSingle();
+
+      if (data?.memo) {
+        const parsed = JSON.parse(data.memo);
+        if (Array.isArray(parsed)) {
+          setLedgerList(parsed);
+          localStorage.setItem('money_ledger_entries', JSON.stringify(parsed));
+        }
+      } else {
+        const local = localStorage.getItem('money_ledger_entries');
+        if (local) setLedgerList(JSON.parse(local));
+      }
+
+      if (Array.isArray(data?.accounts) && data.accounts.length > 0 && typeof data.accounts[0] === 'object') {
+        const rulesObj = data.accounts[0] as Record<string, string>;
+        setLedgerCustomRules(rulesObj);
+        localStorage.setItem('money_ledger_rules', JSON.stringify(rulesObj));
+      } else {
+        const localRules = localStorage.getItem('money_ledger_rules');
+        if (localRules) setLedgerCustomRules(JSON.parse(localRules));
+      }
+    } catch {
+      const local = localStorage.getItem('money_ledger_entries');
+      if (local) {
+        try {
+          setLedgerList(JSON.parse(local));
+        } catch {}
+      }
+      const localRules = localStorage.getItem('money_ledger_rules');
+      if (localRules) {
+        try {
+          setLedgerCustomRules(JSON.parse(localRules));
+        } catch {}
+      }
+    }
+  };
+
+  const saveLedgerRecordsToDb = async (
+    newList: LedgerEntry[],
+    newRules: Record<string, string> = ledgerCustomRules
+  ) => {
+    localStorage.setItem('money_ledger_entries', JSON.stringify(newList));
+    localStorage.setItem('money_ledger_rules', JSON.stringify(newRules));
+
+    const { data: existing } = await supabase
+      .from('money_finances')
+      .select('id')
+      .eq('target_date', LEDGER_STORAGE_DATE)
+      .maybeSingle();
+
+    const payload = {
+      target_date: LEDGER_STORAGE_DATE,
+      accounts: [newRules],
+      expenditures: [],
+      total_accounts: 0,
+      total_expenditures: 0,
+      final_balance: 0,
+      memo: JSON.stringify(newList),
+    };
+
+    if (existing?.id) {
+      await supabase.from('money_finances').update(payload).eq('id', existing.id);
+    } else {
+      await supabase.from('money_finances').insert([payload]);
+    }
+  };
+
+  const resetLedgerForm = () => {
+    setEditingLgId(null);
+    setLgDate(getKstDate());
+    setLgDescription('');
+    setLgAmount('');
+    setLgManualCategory('');
+  };
+
+  // 적요 입력 시 실시간으로 자동 분류되는 항목 미리보기
+  const previewClassifiedCategory = lgManualCategory.trim()
+    ? lgManualCategory.trim()
+    : autoClassifyLedgerCategory(lgDescription, lgScope, ledgerCustomRules);
+
+  const handleAddOrUpdateLedger = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lgDescription.trim()) {
+      alert('적요(내용)를 입력해주세요. (예: KT 인터넷, 쿠팡 양파, 삼겹살 외식)');
+      return;
+    }
+    const numericAmount = parseNumber(lgAmount);
+    if (numericAmount <= 0) {
+      alert('금액을 올바르게 입력해주세요.');
+      return;
+    }
+
+    setLgLoading(true);
+    try {
+      const finalCategory = lgManualCategory.trim()
+        ? lgManualCategory.trim()
+        : autoClassifyLedgerCategory(lgDescription.trim(), lgScope, ledgerCustomRules);
+
+      // 수동으로 항목을 지정했고 '이 적요 단어를 기억' 체크 시 자동분류 규칙에 추가
+      let updatedRules = { ...ledgerCustomRules };
+      if (lgManualCategory.trim() && lgRememberRule && lgDescription.trim()) {
+        const keywordKey = lgDescription.trim().split(/\s+/)[0]; // 첫 핵심 단어 기준 학습
+        if (keywordKey && keywordKey.length >= 2) {
+          updatedRules[keywordKey] = lgManualCategory.trim();
+          setLedgerCustomRules(updatedRules);
+        }
+      }
+
+      let updatedList: LedgerEntry[];
+      if (editingLgId) {
+        updatedList = ledgerList.map((item) =>
+          item.id === editingLgId
+            ? {
+                ...item,
+                date: lgDate,
+                scope: lgScope,
+                costType: lgCostType,
+                description: lgDescription.trim(),
+                amount: numericAmount,
+                category: finalCategory,
+              }
+            : item
+        );
+      } else {
+        const newRecord: LedgerEntry = {
+          id: Date.now().toString(),
+          date: lgDate,
+          scope: lgScope,
+          costType: lgCostType,
+          description: lgDescription.trim(),
+          amount: numericAmount,
+          category: finalCategory,
+          createdAt: new Date().toISOString(),
+        };
+        updatedList = [newRecord, ...ledgerList];
+      }
+
+      // 날짜 최신순 정렬
+      updatedList.sort((a, b) => b.date.localeCompare(a.date));
+      setLedgerList(updatedList);
+      await saveLedgerRecordsToDb(updatedList, updatedRules);
+      resetLedgerForm();
+    } catch (err) {
+      console.error(err);
+      alert('장부 저장 중 오류가 발생했습니다.');
+    } finally {
+      setLgLoading(false);
+    }
+  };
+
+  const handleEditLedger = (item: LedgerEntry) => {
+    setEditingLgId(item.id);
+    setLgDate(item.date);
+    setLgScope(item.scope);
+    setLgCostType(item.costType);
+    setLgDescription(item.description);
+    setLgAmount(formatNumber(item.amount));
+    setLgManualCategory(item.category);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteLedger = async (id: string) => {
+    if (!confirm('이 장부 내역을 삭제하시겠습니까?')) return;
+    const updatedList = ledgerList.filter((item) => item.id !== id);
+    setLedgerList(updatedList);
+    await saveLedgerRecordsToDb(updatedList, ledgerCustomRules);
+    if (editingLgId === id) resetLedgerForm();
+  };
+
+  const resolveEntryCategory = (item: LedgerEntry) => {
+    if (item.category && item.category !== '기타지출') {
+      return item.category;
+    }
+    return autoClassifyLedgerCategory(item.description, item.scope, ledgerCustomRules);
+  };
+
+  const filteredLedgerList = ledgerList.filter((item) => {
+    if (lgFilterScope !== 'all' && item.scope !== lgFilterScope) return false;
+    if (!lgSearch.trim()) return true;
+    const q = lgSearch.trim().toLowerCase();
+    const cat = resolveEntryCategory(item).toLowerCase();
+    return (
+      item.description.toLowerCase().includes(q) ||
+      cat.includes(q) ||
+      item.date.includes(q)
+    );
+  });
+
   if (!isAdminAuthed) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans pb-24">
@@ -1043,25 +1278,35 @@ export default function FinancesAdminPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <span className="text-base sm:text-xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap truncate">
+            <span className="text-sm sm:text-xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap truncate">
               {activeMenu === 'finance'
                 ? '💸 일일 자금 현황'
                 : activeMenu === 'alba'
-                ? '🚨 알바 근무태도 · 이력 관리'
+                ? '🚨 알바 이력 관리'
                 : activeMenu === 'bookmark'
                 ? '🔖 북마크 관리'
                 : activeMenu === 'event'
-                ? '💌 경조사 부조금 관리'
+                ? '💌 경조사 관리'
+                : activeMenu === 'ledger'
+                ? '📒 지출장부 입력'
                 : '🔒 비밀번호 설정'}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <a
+              href="/ledger"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
+            >
+              📒 장부<span className="hidden sm:inline">&nbsp;보기</span>
+            </a>
             <a
               href="/bookmarks"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/70 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
+              className="bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/70 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
               🔖 북마크<span className="hidden sm:inline">&nbsp;공유페이지</span>
             </a>
@@ -1069,9 +1314,9 @@ export default function FinancesAdminPage() {
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap shrink-0"
+              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap shrink-0"
             >
-              📊 공유페이지<span className="hidden sm:inline">&nbsp;보기</span>
+              📊 공유<span className="hidden sm:inline">페이지 보기</span>
             </a>
           </div>
         </div>
@@ -1121,6 +1366,26 @@ export default function FinancesAdminPage() {
           >
             <span className="text-lg shrink-0">💸</span>
             <span>일일 자금 현황</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveMenu('ledger');
+              setIsDrawerOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+              activeMenu === 'ledger'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-lg shrink-0">📒</span>
+              <span>지출장부 입력 (매장·집)</span>
+            </div>
+            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0">
+              {ledgerList.length}
+            </span>
           </button>
 
           <button
@@ -2614,6 +2879,422 @@ export default function FinancesAdminPage() {
                     {evSearch
                       ? `'${evSearch}'에 해당하는 경조사 기록이 없습니다.`
                       : '아직 등록된 경조사 부조금 내역이 없습니다.'}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : activeMenu === 'ledger' ? (
+          /* ==================== [메뉴 2-4] 통합 지출장부 입력 (매장 지출 / 집 지출 / 자동분류) ==================== */
+          <div className="space-y-6">
+            {/* 상단 장부 보기 바로가기 배너 & 요약 */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-2xl p-4 sm:p-5 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">📒</span>
+                  <h2 className="text-base sm:text-lg font-extrabold">매장 · 집 통합 지출장부 빠른 입력</h2>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 break-keep">
+                  날짜·적요·금액만 입력하면 적요 단어를 분석해 <strong className="text-amber-300">통신비, 식자재, 공과금 등 항목으로 자동 정리</strong>됩니다.
+                </p>
+              </div>
+              <a
+                href="/ledger"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap"
+              >
+                <span>📊 항목별 장부 화면 보기 (/ledger)</span>
+                <span>→</span>
+              </a>
+            </div>
+
+            {/* 빠른 입력 폼 카드 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base sm:text-lg font-extrabold text-gray-900 flex items-center gap-2">
+                  <span>{editingLgId ? '✏️ 장부 내역 수정' : '⚡ 일일 지출·수입 빠른 기록'}</span>
+                </h3>
+                {editingLgId && (
+                  <button
+                    type="button"
+                    onClick={resetLedgerForm}
+                    className="text-xs font-bold text-gray-500 hover:text-gray-800 bg-gray-100 px-3 py-1.5 rounded-lg"
+                  >
+                    수정 취소
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleAddOrUpdateLedger} className="space-y-4">
+                {/* 1열: 구분 (매장 지출 / 집 지출 / 매장 수입) & 고정/변동 체크 */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-7">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                      1. 장부 구분 선택
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLgScope('store')}
+                        className={`py-2.5 px-1.5 sm:px-2 rounded-xl font-semibold text-xs sm:text-sm border transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+                          lgScope === 'store'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>🏪 매장 지출</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLgScope('home')}
+                        className={`py-2.5 px-1.5 sm:px-2 rounded-xl font-semibold text-xs sm:text-sm border transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+                          lgScope === 'home'
+                            ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>🏠 집 지출</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLgScope('income')}
+                        className={`py-2.5 px-1.5 sm:px-2 rounded-xl font-semibold text-xs sm:text-sm border transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+                          lgScope === 'income'
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>💰 매장 수입</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-5">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                      2. 고정 / 변동 체크
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLgCostType('fixed')}
+                        className={`py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm border transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+                          lgCostType === 'fixed'
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>📌 고정</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLgCostType('variable')}
+                        className={`py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm border transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+                          lgCostType === 'variable'
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>🔄 변동</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2열: 날짜 / 적요 / 금액 (모바일 터치 시 화면 자동확대 방지를 위해 text-base sm:text-sm 적용) */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-3">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">날짜</label>
+                    <input
+                      type="date"
+                      value={lgDate}
+                      onChange={(e) => setLgDate(e.target.value)}
+                      className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-base sm:text-sm font-normal text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-5">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      적요 (어디에 썼는지 입력)
+                    </label>
+                    <input
+                      type="text"
+                      value={lgDescription}
+                      onChange={(e) => setLgDescription(e.target.value)}
+                      placeholder="예: 매입대금 두올, KT 인터넷, 학원비"
+                      className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-base sm:text-sm font-normal text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">금액 (원)</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={lgAmount}
+                      onChange={(e) => setLgAmount(formatAmountInput(e.target.value))}
+                      placeholder="0"
+                      className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-base sm:text-sm font-medium text-right tabular-nums text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 3열: 실시간 자동분류 미리보기 & 수동 변경 옵션 */}
+                <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-gray-500 whitespace-nowrap">자동 분류 항목:</span>
+                    {(() => {
+                      const meta = getLedgerCategoryMeta(previewClassifiedCategory);
+                      return (
+                        <span
+                          className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border whitespace-nowrap ${meta.badgeClass}`}
+                        >
+                          <span>{meta.icon}</span>
+                          <span>{meta.name}</span>
+                        </span>
+                      );
+                    })()}
+                    {!lgManualCategory && lgDescription.trim() && (
+                      <span className="text-[11px] text-gray-400 font-normal">
+                        (적요 내용으로 자동 매칭됨)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={lgManualCategory}
+                      onChange={(e) => setLgManualCategory(e.target.value)}
+                      className="w-full sm:w-auto text-sm sm:text-xs font-medium bg-white border border-gray-300 rounded-lg px-2.5 py-2 sm:py-1.5 text-gray-700 outline-none"
+                    >
+                      <option value="">🤖 적요로 자동 분류 (추천)</option>
+                      {LEDGER_CATEGORIES.map((cat) => (
+                        <option key={cat.name} value={cat.name}>
+                          {cat.icon} {cat.name} (직접 선택)
+                        </option>
+                      ))}
+                    </select>
+
+                    {lgManualCategory && (
+                      <label className="inline-flex items-center gap-1 text-xs sm:text-[11px] font-medium text-indigo-600 cursor-pointer whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={lgRememberRule}
+                          onChange={(e) => setLgRememberRule(e.target.checked)}
+                          className="rounded text-indigo-600"
+                        />
+                        <span>다음부터 이 단어 기억하기</span>
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={lgLoading}
+                  className="w-full py-3.5 bg-slate-900 hover:bg-black disabled:bg-gray-300 text-white font-semibold rounded-xl text-sm shadow-sm transition-colors whitespace-nowrap"
+                >
+                  {lgLoading
+                    ? '저장 중...'
+                    : editingLgId
+                    ? '✅ 수정 내용 저장하기'
+                    : '➕ 장부에 기록하기'}
+                </button>
+              </form>
+            </div>
+
+            {/* 최근 입력 내역 확인 및 수정/삭제 카드 (페이지네이션 적용) */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                    📋 최근 입력 내역 ({filteredLedgerList.length}건)
+                  </h3>
+                  <p className="text-xs text-gray-500 break-keep mt-0.5">
+                    항목별 합계와 클릭 시 세부내역은 상단의 <a href="/ledger" target="_blank" className="text-emerald-600 font-semibold underline whitespace-nowrap">장부 보기(/ledger)</a> 화면에서 한눈에 볼 수 있습니다.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { key: 'all', label: '전체' },
+                    { key: 'store', label: '🏪 매장' },
+                    { key: 'home', label: '🏠 집' },
+                    { key: 'income', label: '💰 수입' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => {
+                        setLgFilterScope(tab.key as 'all' | LedgerScope);
+                        setLgCurrentPage(1);
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
+                        lgFilterScope === tab.key
+                          ? 'bg-slate-900 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <input
+                  type="text"
+                  value={lgSearch}
+                  onChange={(e) => {
+                    setLgSearch(e.target.value);
+                    setLgCurrentPage(1);
+                  }}
+                  placeholder="적요, 항목명(예: 통신비, 식자재), 날짜 검색..."
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-base sm:text-sm outline-none focus:ring-2 focus:ring-slate-400"
+                />
+              </div>
+
+              {filteredLedgerList.length > 0 ? (
+                (() => {
+                  const ITEMS_PER_PAGE = 10;
+                  const totalPages = Math.max(1, Math.ceil(filteredLedgerList.length / ITEMS_PER_PAGE));
+                  const safePage = Math.min(lgCurrentPage, totalPages);
+                  const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+                  const pagedItems = filteredLedgerList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+                  return (
+                    <>
+                      <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+                        {pagedItems.map((item, idx) => {
+                          const resolvedCat = resolveEntryCategory(item);
+                          const catMeta = getLedgerCategoryMeta(resolvedCat);
+                          const rowNumber = startIndex + idx + 1;
+                          return (
+                            <div
+                              key={item.id}
+                              className="p-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50/80 transition-colors"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs text-gray-400 min-w-[1.25rem] text-center shrink-0 tabular-nums">
+                                    {rowNumber}
+                                  </span>
+                                  <span className="text-xs text-gray-500 shrink-0 tabular-nums whitespace-nowrap">
+                                    {item.date}
+                                  </span>
+                                  <span
+                                    className={`text-[11px] font-medium px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap ${
+                                      item.scope === 'store'
+                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                        : item.scope === 'home'
+                                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    }`}
+                                  >
+                                    {item.scope === 'store'
+                                      ? '🏪 매장'
+                                      : item.scope === 'home'
+                                      ? '🏠 집'
+                                      : '💰 수입'}
+                                  </span>
+                                  {item.scope !== 'income' && (
+                                    <span
+                                      className={`text-[11px] font-medium px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
+                                        item.costType === 'fixed'
+                                          ? 'bg-indigo-50 text-indigo-700'
+                                          : 'bg-teal-50 text-teal-700'
+                                      }`}
+                                    >
+                                      {item.costType === 'fixed' ? '📌 고정' : '🔄 변동'}
+                                    </span>
+                                  )}
+                                  <span
+                                    className={`text-[11px] font-medium px-2 py-0.5 rounded-md border shrink-0 whitespace-nowrap ${catMeta.badgeClass}`}
+                                  >
+                                    {catMeta.icon} {catMeta.name}
+                                  </span>
+                                </div>
+                                <span className="text-sm font-normal text-gray-800 break-keep pl-1 sm:pl-0">
+                                  {item.description}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-gray-100 pl-1 sm:pl-0">
+                                <span
+                                  className={`text-sm sm:text-[15px] font-medium tabular-nums whitespace-nowrap ${
+                                    item.scope === 'income' ? 'text-emerald-600' : 'text-gray-800'
+                                  }`}
+                                >
+                                  {item.scope === 'income' ? '+' : ''}
+                                  {formatNumber(item.amount)}원
+                                </span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditLedger(item)}
+                                    className="text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg whitespace-nowrap"
+                                  >
+                                    수정
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteLedger(item.id)}
+                                    className="text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg whitespace-nowrap"
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* 페이지네이션 (1, 2, 3... 페이지 넘김) */}
+                      {totalPages > 1 && (
+                        <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setLgCurrentPage((p) => Math.max(1, p - 1))}
+                            disabled={safePage === 1}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
+                          >
+                            ‹ 이전
+                          </button>
+
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                            <button
+                              key={pageNum}
+                              type="button"
+                              onClick={() => setLgCurrentPage(pageNum)}
+                              className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors tabular-nums ${
+                                safePage === pageNum
+                                  ? 'bg-slate-900 text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          ))}
+
+                          <button
+                            type="button"
+                            onClick={() => setLgCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={safePage === totalPages}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
+                          >
+                            다음 ›
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()
+              ) : (
+                <div className="py-10 text-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                  <div className="text-2xl mb-1">📒</div>
+                  <div className="text-xs sm:text-sm font-normal">
+                    아직 입력된 장부 내역이 없습니다. 위에서 첫 내역을 입력해보세요!
                   </div>
                 </div>
               )}
