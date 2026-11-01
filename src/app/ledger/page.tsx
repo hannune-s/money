@@ -294,7 +294,7 @@ export default function LedgerViewPage() {
             </div>
           </div>
 
-          {/* ★ 핵심 지표: 매입대금을 제외한 순수 실지출 합계 강조 박스 */}
+          {/* ★ 핵심 지표 1: 매입대금을 제외한 순수 실지출 합계 강조 박스 */}
           <div className="bg-gradient-to-r from-rose-50 via-amber-50/70 to-orange-50 border border-rose-200 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
             <div>
               <div className="flex items-center gap-1.5">
@@ -311,6 +311,55 @@ export default function LedgerViewPage() {
               <div className="text-xl sm:text-2xl font-bold text-rose-600 tabular-nums tracking-tight whitespace-nowrap">
                 {formatNumber(summary.totalExpenseWithoutPurchase)}
                 <span className="text-sm font-semibold text-rose-500 ml-1">원</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ★ 핵심 지표 2: 매출(매장 수입) 대비 지출 차감 후 남은 금액 (월 지출관리 핵심 배너) */}
+          <div
+            className={`rounded-2xl p-3.5 sm:p-4 border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs ${
+              summary.netBalance >= 0
+                ? 'bg-gradient-to-r from-emerald-50 via-teal-50/80 to-cyan-50 border-emerald-300'
+                : 'bg-gradient-to-r from-red-50 via-rose-50 to-orange-50 border-red-300'
+            }`}
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-base shrink-0">💰</span>
+                <span
+                  className={`text-xs sm:text-sm font-bold break-keep ${
+                    summary.netBalance >= 0 ? 'text-emerald-900' : 'text-red-900'
+                  }`}
+                >
+                  매출(매장 수입) 차감 후 잔액 (수입 − 총지출)
+                </span>
+                {summary.incomeTotal > 0 && (
+                  <span className="text-[11px] font-semibold bg-white/90 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full tabular-nums whitespace-nowrap">
+                    지출비중 {Math.round((summary.totalExpense / summary.incomeTotal) * 100)}%
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs sm:text-[13px] text-gray-700 flex-wrap">
+                <span className="whitespace-nowrap">
+                  매장 수입 <strong className="font-bold text-emerald-700 tabular-nums">{formatNumber(summary.incomeTotal)}원</strong>
+                </span>
+                <span className="text-gray-400">−</span>
+                <span className="whitespace-nowrap">
+                  총 지출 <strong className="font-bold text-rose-600 tabular-nums">{formatNumber(summary.totalExpense)}원</strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="text-right sm:shrink-0">
+              <div className="text-[11px] font-medium text-gray-500">차감 후 남은 금액</div>
+              <div
+                className={`text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight whitespace-nowrap ${
+                  summary.netBalance >= 0 ? 'text-emerald-600' : 'text-red-600'
+                }`}
+              >
+                {summary.netBalance > 0 ? '+' : ''}
+                {formatNumber(summary.netBalance)}
+                <span className="text-sm sm:text-base font-bold ml-1">원</span>
               </div>
             </div>
           </div>
@@ -383,7 +432,7 @@ export default function LedgerViewPage() {
             </button>
           </div>
 
-          {/* 전체 고정지출 vs 변동지출 요약 바 + 매장 수입 대비 잔액(수입이 있을 때 표시) */}
+          {/* 전체 고정지출 vs 변동지출 요약 바 */}
           <div className="bg-gray-50 rounded-2xl p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-gray-600 border border-gray-100">
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
               <span className="inline-flex items-center gap-1 text-indigo-700 whitespace-nowrap">
@@ -398,20 +447,6 @@ export default function LedgerViewPage() {
                 🛍️ 매입대금: <strong className="tabular-nums font-semibold">{formatNumber(summary.purchaseTotal)}원</strong>
               </span>
             </div>
-
-            {summary.incomeTotal > 0 && (
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-200">
-                <span className="text-gray-500">💰 매장 수입({formatNumber(summary.incomeTotal)}원) 차감 후:</span>
-                <span
-                  className={`font-bold tabular-nums text-sm ${
-                    summary.netBalance >= 0 ? 'text-emerald-600' : 'text-red-600'
-                  }`}
-                >
-                  {summary.netBalance > 0 ? '+' : ''}
-                  {formatNumber(summary.netBalance)}원
-                </span>
-              </div>
-            )}
           </div>
         </section>
 
