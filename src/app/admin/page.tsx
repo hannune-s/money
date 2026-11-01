@@ -3210,56 +3210,69 @@ export default function FinancesAdminPage() {
                           return (
                             <div
                               key={item.id}
-                              className="p-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50/80 transition-colors"
+                              className="px-2 sm:px-4 py-2.5 flex items-center justify-between gap-1 sm:gap-2 hover:bg-gray-50/80 transition-colors"
                             >
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-xs text-gray-400 min-w-[1.25rem] text-center shrink-0 tabular-nums">
-                                    {rowNumber}
+                              <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+                                <span className="text-[11px] sm:text-xs text-gray-400 min-w-[1rem] sm:min-w-[1.25rem] text-center shrink-0 tabular-nums">
+                                  {rowNumber}
+                                </span>
+                                <span className="text-[11px] sm:text-xs text-gray-500 shrink-0 tabular-nums whitespace-nowrap">
+                                  <span className="sm:hidden">{item.date.slice(5)}</span>
+                                  <span className="hidden sm:inline">{item.date}</span>
+                                </span>
+                                <span
+                                  className={`text-[10px] sm:text-[11px] font-medium px-1 sm:px-2 py-0.5 rounded shrink-0 whitespace-nowrap ${
+                                    item.scope === 'store'
+                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                      : item.scope === 'home'
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  }`}
+                                >
+                                  <span className="sm:hidden">
+                                    {item.scope === 'store' ? '매장' : item.scope === 'home' ? '집' : '수입'}
                                   </span>
-                                  <span className="text-xs text-gray-500 shrink-0 tabular-nums whitespace-nowrap">
-                                    {item.date}
-                                  </span>
-                                  <span
-                                    className={`text-[11px] font-medium px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap ${
-                                      item.scope === 'store'
-                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                        : item.scope === 'home'
-                                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    }`}
-                                  >
+                                  <span className="hidden sm:inline">
                                     {item.scope === 'store'
                                       ? '🏪 매장'
                                       : item.scope === 'home'
                                       ? '🏠 집'
                                       : '💰 수입'}
                                   </span>
-                                  {item.scope !== 'income' && (
-                                    <span
-                                      className={`text-[11px] font-medium px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
-                                        item.costType === 'fixed'
-                                          ? 'bg-indigo-50 text-indigo-700'
-                                          : 'bg-teal-50 text-teal-700'
-                                      }`}
-                                    >
+                                </span>
+                                {item.scope !== 'income' && (
+                                  <span
+                                    className={`text-[10px] sm:text-[11px] font-medium px-1 sm:px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
+                                      item.costType === 'fixed'
+                                        ? 'bg-indigo-50 text-indigo-700'
+                                        : 'bg-teal-50 text-teal-700'
+                                    }`}
+                                  >
+                                    <span className="sm:hidden">{item.costType === 'fixed' ? '고정' : '변동'}</span>
+                                    <span className="hidden sm:inline">
                                       {item.costType === 'fixed' ? '📌 고정' : '🔄 변동'}
                                     </span>
-                                  )}
-                                  <span
-                                    className={`text-[11px] font-medium px-2 py-0.5 rounded-md border shrink-0 whitespace-nowrap ${catMeta.badgeClass}`}
-                                  >
-                                    {catMeta.icon} {catMeta.name}
                                   </span>
-                                </div>
-                                <span className="text-sm font-normal text-gray-800 break-keep pl-1 sm:pl-0">
+                                )}
+                                <span
+                                  className={`hidden sm:inline-flex text-[11px] font-medium px-2 py-0.5 rounded-md border shrink-0 whitespace-nowrap ${catMeta.badgeClass}`}
+                                >
+                                  {catMeta.icon} {catMeta.name}
+                                </span>
+                                <span
+                                  className={`sm:hidden text-[10px] font-medium px-1 py-0.5 rounded border shrink-0 whitespace-nowrap ${catMeta.badgeClass}`}
+                                  title={catMeta.name}
+                                >
+                                  {catMeta.icon}
+                                </span>
+                                <span className="text-xs sm:text-sm font-normal text-gray-800 truncate min-w-0">
                                   {item.description}
                                 </span>
                               </div>
 
-                              <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-gray-100 pl-1 sm:pl-0">
+                              <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
                                 <span
-                                  className={`text-sm sm:text-[15px] font-medium tabular-nums whitespace-nowrap ${
+                                  className={`text-xs sm:text-[15px] font-medium tabular-nums whitespace-nowrap ${
                                     item.scope === 'income' ? 'text-emerald-600' : 'text-gray-800'
                                   }`}
                                 >
@@ -3270,14 +3283,14 @@ export default function FinancesAdminPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleEditLedger(item)}
-                                    className="text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg whitespace-nowrap"
+                                    className="text-[11px] sm:text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg whitespace-nowrap"
                                   >
                                     수정
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteLedger(item.id)}
-                                    className="text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg whitespace-nowrap"
+                                    className="text-[11px] sm:text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg whitespace-nowrap"
                                   >
                                     삭제
                                   </button>

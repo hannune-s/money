@@ -628,33 +628,34 @@ export default function LedgerViewPage() {
                         {group.items.map((item) => (
                           <div
                             key={item.id}
-                            className="px-3.5 sm:px-5 py-2.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-3 text-xs sm:text-sm"
+                            className="px-3 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between gap-2 text-xs sm:text-sm"
                           >
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="tabular-nums text-gray-400 text-xs shrink-0 whitespace-nowrap">
-                                  {item.date}
-                                </span>
-                                <span
-                                  className={`text-[11px] font-medium px-2 py-0.5 rounded-md border shrink-0 whitespace-nowrap ${
-                                    item.scope === 'store'
-                                      ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                      : 'bg-amber-50 text-amber-800 border-amber-200'
-                                  }`}
-                                >
-                                  {item.scope === 'store' ? '🏪 매장' : '🏠 집'}
-                                </span>
-                                <span
-                                  className={`text-[11px] font-medium px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap ${
-                                    item.costType === 'fixed'
-                                      ? 'bg-indigo-50 text-indigo-700'
-                                      : 'bg-gray-200/70 text-gray-700'
-                                  }`}
-                                >
-                                  {item.costType === 'fixed' ? '📌 고정' : '🔄 변동'}
-                                </span>
-                              </div>
-                              <span className="font-normal text-gray-800 break-keep">
+                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                              <span className="tabular-nums text-gray-400 text-[11px] sm:text-xs shrink-0 whitespace-nowrap">
+                                <span className="sm:hidden">{item.date.slice(5)}</span>
+                                <span className="hidden sm:inline">{item.date}</span>
+                              </span>
+                              <span
+                                className={`text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded-md border shrink-0 whitespace-nowrap ${
+                                  item.scope === 'store'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                                }`}
+                              >
+                                <span className="sm:hidden">{item.scope === 'store' ? '매장' : '집'}</span>
+                                <span className="hidden sm:inline">{item.scope === 'store' ? '🏪 매장' : '🏠 집'}</span>
+                              </span>
+                              <span
+                                className={`text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap ${
+                                  item.costType === 'fixed'
+                                    ? 'bg-indigo-50 text-indigo-700'
+                                    : 'bg-gray-200/70 text-gray-700'
+                                }`}
+                              >
+                                <span className="sm:hidden">{item.costType === 'fixed' ? '고정' : '변동'}</span>
+                                <span className="hidden sm:inline">{item.costType === 'fixed' ? '📌 고정' : '🔄 변동'}</span>
+                              </span>
+                              <span className="font-normal text-gray-800 truncate min-w-0">
                                 {item.description}
                               </span>
                             </div>
