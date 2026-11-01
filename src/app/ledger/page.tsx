@@ -41,7 +41,7 @@ export default function LedgerViewPage() {
         .from('money_finances')
         .select('memo')
         .eq('target_date', LEDGER_STORAGE_DATE)
-        .single();
+        .maybeSingle();
 
       if (data && data.memo) {
         const parsed = JSON.parse(data.memo);
@@ -263,7 +263,7 @@ export default function LedgerViewPage() {
 
             <a
               href="/admin?menu=ledger"
-              className="bg-gray-900 hover:bg-black text-white text-xs sm:text-sm font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
+              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs sm:text-sm font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
             >
               ✏️ 입력
             </a>
@@ -322,8 +322,8 @@ export default function LedgerViewPage() {
               onClick={() => setScopeTab(scopeTab === 'store' ? 'all' : 'store')}
               className={`text-left p-4 rounded-2xl border-2 transition-all ${
                 scopeTab === 'store'
-                  ? 'bg-blue-50/70 border-blue-500 shadow-xs'
-                  : 'bg-gray-50/70 border-gray-100 hover:border-blue-200'
+                  ? 'bg-blue-50 border-blue-500 shadow-xs'
+                  : 'bg-white border-gray-200 hover:border-blue-300'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -340,7 +340,7 @@ export default function LedgerViewPage() {
                 {formatNumber(summary.storeTotal)}
                 <span className="text-xs font-normal text-gray-500 ml-1">원</span>
               </div>
-              <div className="mt-1.5 inline-flex items-center gap-1 bg-white/90 border border-blue-200/80 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-rose-600 whitespace-nowrap">
+              <div className="mt-1.5 inline-flex items-center gap-1 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-rose-600 whitespace-nowrap">
                 <span>🎯 매입 제외 매장지출:</span>
                 <span className="tabular-nums">{formatNumber(summary.storeTotalWithoutPurchase)}원</span>
               </div>
@@ -355,8 +355,8 @@ export default function LedgerViewPage() {
               onClick={() => setScopeTab(scopeTab === 'home' ? 'all' : 'home')}
               className={`text-left p-4 rounded-2xl border-2 transition-all ${
                 scopeTab === 'home'
-                  ? 'bg-amber-50/70 border-amber-500 shadow-xs'
-                  : 'bg-gray-50/70 border-gray-100 hover:border-amber-200'
+                  ? 'bg-amber-50 border-amber-500 shadow-xs'
+                  : 'bg-white border-gray-200 hover:border-amber-300'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -373,7 +373,7 @@ export default function LedgerViewPage() {
                 {formatNumber(summary.homeTotal)}
                 <span className="text-xs font-normal text-gray-500 ml-1">원</span>
               </div>
-              <div className="mt-1.5 inline-flex items-center gap-1 bg-white/90 border border-amber-200/80 px-2 py-0.5 rounded-lg text-[11px] font-medium text-amber-700 whitespace-nowrap">
+              <div className="mt-1.5 inline-flex items-center gap-1 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-lg text-[11px] font-medium text-amber-700 whitespace-nowrap">
                 <span>생활·가계 순수 지출</span>
               </div>
               <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-gray-500 flex-wrap">
@@ -418,21 +418,33 @@ export default function LedgerViewPage() {
         {/* 2. 탭 선택 (전체 / 매장 지출 / 집 지출) & 고정/변동 필터 */}
         <section className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            {/* 매장 / 집 구분 탭 */}
-            <div className="grid grid-cols-3 bg-gray-200/80 p-1 rounded-2xl gap-1">
+            {/* 매장 / 집 구분 탭 (어두운 배경 없이 밝고 선명한 컬러 버튼 적용) */}
+            <div className="grid grid-cols-3 gap-1.5">
               {[
-                { key: 'all', label: '📊 전체 합산' },
-                { key: 'store', label: '🏪 매장 지출' },
-                { key: 'home', label: '🏠 집 지출' },
+                {
+                  key: 'all',
+                  label: '📊 전체 합산',
+                  activeClass: 'bg-indigo-50 text-indigo-700 border-2 border-indigo-500 shadow-xs font-bold',
+                },
+                {
+                  key: 'store',
+                  label: '🏪 매장 지출',
+                  activeClass: 'bg-blue-50 text-blue-700 border-2 border-blue-500 shadow-xs font-bold',
+                },
+                {
+                  key: 'home',
+                  label: '🏠 집 지출',
+                  activeClass: 'bg-amber-50 text-amber-800 border-2 border-amber-500 shadow-xs font-bold',
+                },
               ].map((t) => (
                 <button
                   key={t.key}
                   type="button"
                   onClick={() => setScopeTab(t.key as 'all' | 'store' | 'home')}
-                  className={`py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                  className={`py-2.5 px-2 sm:px-3 rounded-xl text-xs sm:text-sm transition-all whitespace-nowrap ${
                     scopeTab === t.key
-                      ? 'bg-white text-gray-900 shadow-xs'
-                      : 'bg-gray-600 hover:text-gray-900'
+                      ? t.activeClass
+                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-medium'
                   }`}
                 >
                   {t.label}
@@ -440,21 +452,33 @@ export default function LedgerViewPage() {
               ))}
             </div>
 
-            {/* 고정 / 변동 필터 */}
+            {/* 고정 / 변동 필터 (검정색 대신 밝은 인디고·청록 테두리 적용) */}
             <div className="flex items-center gap-1.5 self-end sm:self-auto">
               {[
-                { key: 'all', label: '전체' },
-                { key: 'fixed', label: '📌 고정만' },
-                { key: 'variable', label: '🔄 변동만' },
+                {
+                  key: 'all',
+                  label: '전체',
+                  activeClass: 'bg-indigo-50 text-indigo-700 border-2 border-indigo-500 font-bold',
+                },
+                {
+                  key: 'fixed',
+                  label: '📌 고정만',
+                  activeClass: 'bg-indigo-50 text-indigo-700 border-2 border-indigo-500 font-bold',
+                },
+                {
+                  key: 'variable',
+                  label: '🔄 변동만',
+                  activeClass: 'bg-teal-50 text-teal-700 border-2 border-teal-500 font-bold',
+                },
               ].map((cf) => (
                 <button
                   key={cf.key}
                   type="button"
                   onClick={() => setCostFilter(cf.key as 'all' | 'fixed' | 'variable')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-xl text-xs transition-colors whitespace-nowrap ${
                     costFilter === cf.key
-                      ? 'bg-gray-900 text-white border-gray-900'
-                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                      ? cf.activeClass
+                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-medium'
                   }`}
                 >
                   {cf.label}
@@ -470,13 +494,13 @@ export default function LedgerViewPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="🔍 항목명(예: 통신비, 매입) 또는 적요 검색..."
-              className="w-full pl-4 pr-16 py-2.5 bg-white border border-gray-200 rounded-2xl text-base sm:text-sm font-normal focus:ring-2 focus:ring-indigo-500 outline-none shadow-2xs"
+              className="w-full pl-4 pr-16 py-2.5 bg-white border border-gray-200 rounded-2xl text-base sm:text-sm font-normal text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none shadow-2xs"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400 hover:text-gray-700"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md hover:text-gray-800"
               >
                 지우기 ✕
               </button>
@@ -531,7 +555,7 @@ export default function LedgerViewPage() {
                     <button
                       type="button"
                       onClick={() => toggleCategory(group.category)}
-                      className="w-full p-3.5 sm:p-5 text-left hover:bg-gray-50/80 transition-colors flex flex-col gap-2.5"
+                      className="w-full bg-white p-3.5 sm:p-5 text-left hover:bg-gray-50/80 transition-colors flex flex-col gap-2.5"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5 min-w-0">

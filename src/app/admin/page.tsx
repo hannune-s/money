@@ -1111,13 +1111,21 @@ export default function FinancesAdminPage() {
         setLedgerCustomRules(mergedRules);
         await saveLedgerRecordsToDb(localEntries, mergedRules);
       } else if (dbEntries.length > 0) {
-        // ID 기준 병합 (로컬에만 있던 항목이 있으면 누락 없이 합침)
+        // ID 및 (날짜+구분+적요+금액) 기준 병합하여 중복 없이 합침
+        const getSig = (e: LedgerEntry) =>
+          `${e.date}|${e.scope}|${(e.description || '').trim()}|${e.amount}`;
         const mapById = new Map<string, LedgerEntry>();
-        dbEntries.forEach((item) => mapById.set(item.id, item));
+        const sigSet = new Set<string>();
+        dbEntries.forEach((item) => {
+          mapById.set(item.id, item);
+          sigSet.add(getSig(item));
+        });
         let hasLocalOnly = false;
         localEntries.forEach((item) => {
-          if (!mapById.has(item.id)) {
+          const sig = getSig(item);
+          if (!mapById.has(item.id) && !sigSet.has(sig)) {
             mapById.set(item.id, item);
+            sigSet.add(sig);
             hasLocalOnly = true;
           }
         });
@@ -3122,7 +3130,7 @@ export default function FinancesAdminPage() {
                 <button
                   type="submit"
                   disabled={lgLoading}
-                  className="w-full py-3.5 bg-slate-900 hover:bg-black disabled:bg-gray-300 text-white font-semibold rounded-xl text-sm shadow-sm transition-colors whitespace-nowrap"
+                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-xl text-sm shadow-sm transition-colors whitespace-nowrap"
                 >
                   {lgLoading
                     ? '저장 중...'
@@ -3159,10 +3167,10 @@ export default function FinancesAdminPage() {
                         setLgFilterScope(tab.key as 'all' | LedgerScope);
                         setLgCurrentPage(1);
                       }}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
+                      className={`px-2.5 py-1.5 rounded-lg text-xs transition whitespace-nowrap ${
                         lgFilterScope === tab.key
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-500 font-bold'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-medium'
                       }`}
                     >
                       {tab.label}
@@ -3297,10 +3305,10 @@ export default function FinancesAdminPage() {
                               key={pageNum}
                               type="button"
                               onClick={() => setLgCurrentPage(pageNum)}
-                              className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors tabular-nums ${
+                              className={`w-8 h-8 rounded-lg text-xs transition-colors tabular-nums ${
                                 safePage === pageNum
-                                  ? 'bg-slate-900 text-white'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-500 font-bold'
+                                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-medium'
                               }`}
                             >
                               {pageNum}
