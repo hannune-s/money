@@ -2965,13 +2965,13 @@ export default function FinancesAdminPage() {
               </div>
 
               <form onSubmit={handleAddOrUpdateLedger} className="space-y-4">
-                {/* 1열: 구분 (매장 지출 / 집 지출 / 매장 수입) & 고정/변동 체크 */}
+                {/* 1열: 구분 (매장 지출 / 집 지출 / 매장 수입 / 기타·부수입) & 고정/변동 체크 */}
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                  <div className="sm:col-span-7">
+                  <div className="sm:col-span-8">
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">
                       1. 장부 구분 선택
                     </label>
-                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
                       <button
                         type="button"
                         onClick={() => setLgScope('store')}
@@ -3005,10 +3005,21 @@ export default function FinancesAdminPage() {
                       >
                         <span>💰 매장 수입</span>
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setLgScope('side_income')}
+                        className={`py-2.5 px-1.5 sm:px-2 rounded-xl font-semibold text-xs sm:text-sm border transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+                          lgScope === 'side_income'
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>🎁 기타·부수입</span>
+                      </button>
                     </div>
                   </div>
 
-                  <div className="sm:col-span-5">
+                  <div className="sm:col-span-4">
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">
                       2. 고정 / 변동 체크
                     </label>
@@ -3065,13 +3076,13 @@ export default function FinancesAdminPage() {
 
                   <div className="sm:col-span-5">
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      적요 (어디에 썼는지 입력)
+                      적요 (어디에 썼는지 / 무슨 수입인지 입력)
                     </label>
                     <input
                       type="text"
                       value={lgDescription}
                       onChange={(e) => setLgDescription(e.target.value)}
-                      placeholder="예: 매입대금 두올, KT 인터넷, 학원비"
+                      placeholder="예: 매입대금 두올, 보험보상금, 학원비"
                       className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-base sm:text-sm font-normal text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
@@ -3158,7 +3169,8 @@ export default function FinancesAdminPage() {
                     { key: 'all', label: '전체' },
                     { key: 'store', label: '🏪 매장' },
                     { key: 'home', label: '🏠 집' },
-                    { key: 'income', label: '💰 수입' },
+                    { key: 'income', label: '💰 매장수입' },
+                    { key: 'side_income', label: '🎁 부수입' },
                   ].map((tab) => (
                     <button
                       key={tab.key}
@@ -3226,21 +3238,31 @@ export default function FinancesAdminPage() {
                                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                       : item.scope === 'home'
                                       ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      : item.scope === 'side_income'
+                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
                                       : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                   }`}
                                 >
                                   <span className="sm:hidden">
-                                    {item.scope === 'store' ? '매장' : item.scope === 'home' ? '집' : '수입'}
+                                    {item.scope === 'store'
+                                      ? '매장'
+                                      : item.scope === 'home'
+                                      ? '집'
+                                      : item.scope === 'side_income'
+                                      ? '부수입'
+                                      : '수입'}
                                   </span>
                                   <span className="hidden sm:inline">
                                     {item.scope === 'store'
                                       ? '🏪 매장'
                                       : item.scope === 'home'
                                       ? '🏠 집'
-                                      : '💰 수입'}
+                                      : item.scope === 'side_income'
+                                      ? '🎁 부수입'
+                                      : '💰 매장수입'}
                                   </span>
                                 </span>
-                                {item.scope !== 'income' && (
+                                {item.scope !== 'income' && item.scope !== 'side_income' && (
                                   <span
                                     className={`text-[10px] sm:text-[11px] font-medium px-1 sm:px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
                                       item.costType === 'fixed'
@@ -3273,10 +3295,12 @@ export default function FinancesAdminPage() {
                               <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
                                 <span
                                   className={`text-xs sm:text-[15px] font-medium tabular-nums whitespace-nowrap ${
-                                    item.scope === 'income' ? 'text-emerald-600' : 'text-gray-800'
+                                    item.scope === 'income' || item.scope === 'side_income'
+                                      ? 'text-emerald-600'
+                                      : 'text-gray-800'
                                   }`}
                                 >
-                                  {item.scope === 'income' ? '+' : ''}
+                                  {item.scope === 'income' || item.scope === 'side_income' ? '+' : ''}
                                   {formatNumber(item.amount)}원
                                 </span>
                                 <div className="flex items-center gap-1 shrink-0">

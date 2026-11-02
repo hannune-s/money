@@ -85,7 +85,7 @@ export default function LedgerViewPage() {
     return autoClassifyLedgerCategory(item.description, item.scope);
   };
 
-  // 상단 토탈 요약 수치 계산 (매장 수입, 매장 지출, 집 지출, 총 지출, 매입대금 제외 실지출, 고정/변동)
+  // 상단 토탈 요약 수치 계산 (매장 수입, 기타·부수입, 매장 지출, 집 지출, 총 지출, 매입대금 제외 실지출, 고정/변동)
   const summary = useMemo(() => {
     let storeTotal = 0;
     let storeFixed = 0;
@@ -97,7 +97,9 @@ export default function LedgerViewPage() {
     let homeVariable = 0;
 
     let purchaseTotal = 0; // 전체 매입·물품대금 합계
-    let incomeTotal = 0;
+    let storeIncomeTotal = 0; // 매장 수입
+    let sideIncomeTotal = 0; // 기타·부수입 (보험보상금 등)
+    const sideIncomeItems: LedgerEntry[] = [];
 
     monthFilteredEntries.forEach((item) => {
       const amt = Number(item.amount) || 0;
@@ -105,7 +107,10 @@ export default function LedgerViewPage() {
       const isPurchase = cat === '매입·물품대금';
 
       if (item.scope === 'income') {
-        incomeTotal += amt;
+        storeIncomeTotal += amt;
+      } else if (item.scope === 'side_income') {
+        sideIncomeTotal += amt;
+        sideIncomeItems.push(item);
       } else if (item.scope === 'store') {
         storeTotal += amt;
         if (isPurchase) {
@@ -124,6 +129,7 @@ export default function LedgerViewPage() {
       }
     });
 
+    const incomeTotal = storeIncomeTotal + sideIncomeTotal;
     const totalExpense = storeTotal + homeTotal;
     const totalExpenseWithoutPurchase = totalExpense - purchaseTotal;
     const storeTotalWithoutPurchase = storeTotal - storePurchaseTotal;
@@ -141,6 +147,9 @@ export default function LedgerViewPage() {
       homeFixed,
       homeVariable,
       purchaseTotal,
+      storeIncomeTotal,
+      sideIncomeTotal,
+      sideIncomeItems: sideIncomeItems.sort((a, b) => b.date.localeCompare(a.date)),
       incomeTotal,
       totalExpense,
       totalExpenseWithoutPurchase,
@@ -153,7 +162,7 @@ export default function LedgerViewPage() {
   // 현재 선택된 탭(전체/매장/집) + 고정/변동 + 검색어로 필터링된 지출 내역
   const filteredExpenses = useMemo(() => {
     return monthFilteredEntries.filter((item) => {
-      if (item.scope === 'income') return false; // 지출 항목별 집계에서는 지출만 표시
+      if (item.scope === 'income' || item.scope === 'side_income') return false; // 지출 항목별 집계에서는 지출만 표시
       if (scopeTab !== 'all' && item.scope !== scopeTab) return false;
       if (costFilter !== 'all' && item.costType !== costFilter) return false;
       if (searchQuery.trim()) {
@@ -315,7 +324,7 @@ export default function LedgerViewPage() {
             </div>
           </div>
 
-          {/* ★ 핵심 지표 2: 매출(매장 수입) 대비 지출 차감 후 남은 금액 (월 지출관리 핵심 배너) */}
+          {/* ★ 핵심 지표 2: 총 수입(매장 수입 + 기타·부수입) 대비 지출 차감 후 남은 금액 */}
           <div
             className={`rounded-2xl p-3.5 sm:p-4 border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs ${
               summary.netBalance >= 0
@@ -331,7 +340,7 @@ export default function LedgerViewPage() {
                     summary.netBalance >= 0 ? 'text-emerald-900' : 'text-red-900'
                   }`}
                 >
-                  매출(매장 수입) 차감 후 잔액 (수입 − 총지출)
+                  총 수입(매출·부수입) 차감 후 잔액 (수입 − 총지출)
                 </span>
                 {summary.incomeTotal > 0 && (
                   <span className="text-[11px] font-semibold bg-white/90 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full tabular-nums whitespace-nowrap">
@@ -341,13 +350,33 @@ export default function LedgerViewPage() {
               </div>
               <div className="flex items-center gap-2 text-xs sm:text-[13px] text-gray-700 flex-wrap">
                 <span className="whitespace-nowrap">
-                  매장 수입 <strong className="font-bold text-emerald-700 tabular-nums">{formatNumber(summary.incomeTotal)}원</strong>
+                  매장 수입 <strong className="font-bold text-emerald-700 tabular-nums">{formatNumber(summary.storeIncomeTotal)}원</strong>
                 </span>
+                {summary.sideIncomeTotal > 0 && (
+                  <>
+                    <span className="text-gray-400">+</span>
+                    <span className="whitespace-nowrap">
+                      🎁 부수입 <strong className="font-bold text-purple-700 tabular-nums">{formatNumber(summary.sideIncomeTotal)}원</strong>
+                    </span>
+                  </>
+                )}
                 <span className="text-gray-400">−</span>
                 <span className="whitespace-nowrap">
                   총 지출 <strong className="font-bold text-rose-600 tabular-nums">{formatNumber(summary.totalExpense)}원</strong>
                 </span>
               </div>
+              {summary.sideIncomeItems.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  {summary.sideIncomeItems.map((si) => (
+                    <span
+                      key={si.id}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-md tabular-nums whitespace-nowrap"
+                    >
+                      🎁 {si.description}: +{formatNumber(si.amount)}원
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="text-right sm:shrink-0">

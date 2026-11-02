@@ -1,12 +1,12 @@
 export const LEDGER_STORAGE_DATE = '1970-01-06';
 
-export type LedgerScope = 'store' | 'home' | 'income';
+export type LedgerScope = 'store' | 'home' | 'income' | 'side_income';
 export type LedgerCostType = 'fixed' | 'variable';
 
 export interface LedgerEntry {
   id: string;
   date: string; // YYYY-MM-DD
-  scope: LedgerScope; // 'store': 매장 지출, 'home': 집 지출, 'income': 매장 수입
+  scope: LedgerScope; // 'store': 매장 지출, 'home': 집 지출, 'income': 매장 수입, 'side_income': 기타·부수입
   costType: LedgerCostType; // 'fixed': 고정, 'variable': 변동
   description: string; // 적요
   amount: number; // 금액
@@ -142,6 +142,15 @@ export function getLedgerCategoryMeta(catName: string): LedgerCategoryMeta {
       keywords: [],
     };
   }
+  if (catName === '기타·부수입') {
+    return {
+      name: '기타·부수입',
+      icon: '🎁',
+      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+      barClass: 'bg-purple-500',
+      keywords: [],
+    };
+  }
   const found = LEDGER_CATEGORIES.find((c) => c.name === catName);
   if (found) return found;
   return {
@@ -159,6 +168,7 @@ export function autoClassifyLedgerCategory(
   customRules: Record<string, string> = {}
 ): string {
   if (scope === 'income') return '매장수입·매출';
+  if (scope === 'side_income') return '기타·부수입';
   const clean = description.trim().toLowerCase();
   if (!clean) return '기타지출';
 
