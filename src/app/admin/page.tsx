@@ -3039,7 +3039,7 @@ export default function FinancesAdminPage() {
                   </div>
                 </div>
 
-                {/* 2열: 날짜 / 적요 / 금액 (모바일 터치 시 화면 자동확대 방지를 위해 text-base sm:text-sm 적용) */}
+                {/* 2열: 날짜 / 금액 / 적요 (모바일 터치 시 화면 자동확대 방지를 위해 text-base sm:text-sm 적용) */}
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                   <div className="sm:col-span-3">
                     <label className="block text-xs font-medium text-gray-600 mb-1">날짜</label>
@@ -3048,6 +3048,18 @@ export default function FinancesAdminPage() {
                       value={lgDate}
                       onChange={(e) => setLgDate(e.target.value)}
                       className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-base sm:text-sm font-normal text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">금액 (원)</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={lgAmount}
+                      onChange={(e) => setLgAmount(formatAmountInput(e.target.value))}
+                      placeholder="0"
+                      className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-base sm:text-sm font-medium text-right tabular-nums text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
 
@@ -3061,18 +3073,6 @@ export default function FinancesAdminPage() {
                       onChange={(e) => setLgDescription(e.target.value)}
                       placeholder="예: 매입대금 두올, KT 인터넷, 학원비"
                       className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-base sm:text-sm font-normal text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-4">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">금액 (원)</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={lgAmount}
-                      onChange={(e) => setLgAmount(formatAmountInput(e.target.value))}
-                      placeholder="0"
-                      className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-base sm:text-sm font-medium text-right tabular-nums text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                 </div>
