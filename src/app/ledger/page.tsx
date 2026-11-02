@@ -17,6 +17,7 @@ export default function LedgerViewPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>('all'); // 'all' or 'YYYY-MM'
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
 
@@ -250,6 +251,16 @@ export default function LedgerViewPage() {
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-xs">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsDrawerOpen(true)}
+              className="p-2 rounded-xl hover:bg-gray-100 text-gray-800 transition-colors focus:outline-none shrink-0"
+              aria-label="메뉴 열기"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
             <h1 className="text-sm sm:text-xl font-bold text-gray-900 whitespace-nowrap truncate tracking-tight">
               통합 지출장부<span className="hidden sm:inline text-gray-500 font-medium"> (매장 · 집)</span>
             </h1>
@@ -285,6 +296,97 @@ export default function LedgerViewPage() {
           </div>
         </div>
       </header>
+
+      {/* 햄버거 사이드 드로어 메뉴 */}
+      {isDrawerOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 transition-opacity"
+          onClick={() => setIsDrawerOpen(false)}
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 w-72 max-w-[82vw] bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out ${
+          isDrawerOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-yellow-50/60">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-yellow-400 text-gray-900 font-black flex items-center justify-center text-lg shadow-sm shrink-0">
+              M
+            </div>
+            <div>
+              <div className="font-extrabold text-gray-900 text-base leading-tight whitespace-nowrap">머니장부 메뉴</div>
+              <div className="text-[11px] text-gray-500 whitespace-nowrap">전체 메뉴 빠른 이동</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(false)}
+            className="p-2 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="p-4 flex flex-col gap-1.5 flex-1 overflow-y-auto">
+          <a
+            href="/admin?menu=finance"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            <span>일일 자금 현황 (어드민)</span>
+          </a>
+
+          <a
+            href="/admin?menu=ledger"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            <span>지출장부 입력 (매장·집)</span>
+          </a>
+
+          <a
+            href="/ledger"
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 transition-colors whitespace-nowrap"
+          >
+            <span>통합 지출장부 보기</span>
+            <span className="text-xs font-extrabold">{entries.length}</span>
+          </a>
+
+          <a
+            href="/unpaid"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            <span>미납금 · 외상 잔금 관리</span>
+          </a>
+
+          <a
+            href="/admin?menu=alba"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            <span>알바 이력 관리</span>
+          </a>
+
+          <a
+            href="/admin?menu=bookmark"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            <span>북마크 관리</span>
+          </a>
+
+          <a
+            href="/admin?menu=event"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            <span>경조사 관리</span>
+          </a>
+
+          <a
+            href="/"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-indigo-600 hover:bg-indigo-50 transition-colors whitespace-nowrap mt-2 border-t border-gray-100 pt-3"
+          >
+            <span>일일잔고 공유페이지 보기</span>
+          </a>
+        </div>
+      </aside>
 
       <main className="max-w-3xl mx-auto px-3 sm:px-4 pt-4 sm:pt-6 space-y-5">
         {/* 1. 매장 + 집 토탈 지출 요약 대시보드 */}
