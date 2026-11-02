@@ -1333,12 +1333,20 @@ export default function FinancesAdminPage() {
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <a
+              href="/unpaid"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
+            >
+              미납금<span className="hidden sm:inline">&nbsp;관리</span>
+            </a>
+            <a
               href="/ledger"
               target="_blank"
               rel="noopener noreferrer"
               className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
-              📒 장부<span className="hidden sm:inline">&nbsp;보기</span>
+              장부<span className="hidden sm:inline">&nbsp;보기</span>
             </a>
             <a
               href="/bookmarks"
@@ -1346,7 +1354,7 @@ export default function FinancesAdminPage() {
               rel="noopener noreferrer"
               className="bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/70 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
-              🔖 북마크<span className="hidden sm:inline">&nbsp;공유페이지</span>
+              북마크<span className="hidden sm:inline">&nbsp;공유페이지</span>
             </a>
             <a
               href="/"
@@ -1354,7 +1362,7 @@ export default function FinancesAdminPage() {
               rel="noopener noreferrer"
               className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap shrink-0"
             >
-              📊 공유<span className="hidden sm:inline">페이지 보기</span>
+              공유<span className="hidden sm:inline">페이지 보기</span>
             </a>
           </div>
         </div>
@@ -1425,6 +1433,18 @@ export default function FinancesAdminPage() {
               {ledgerList.length}
             </span>
           </button>
+
+          <a
+            href="/unpaid"
+            onClick={() => setIsDrawerOpen(false)}
+            className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap text-gray-600 hover:bg-rose-50 hover:text-rose-700"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 ml-1.5 mr-1" />
+              <span>미납금 · 외상 잔금 관리</span>
+            </div>
+            <span className="text-xs text-rose-600 font-semibold">이동 →</span>
+          </a>
 
           <button
             onClick={() => {

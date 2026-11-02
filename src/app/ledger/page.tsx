@@ -270,8 +270,15 @@ export default function LedgerViewPage() {
             </select>
 
             <a
+              href="/unpaid"
+              className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs sm:text-sm font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
+            >
+              미납금 관리
+            </a>
+
+            <a
               href="/admin?menu=ledger"
-              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs sm:text-sm font-semibold px-3 sm:px-3.5 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
+              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs sm:text-sm font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
             >
               장부 입력
             </a>
