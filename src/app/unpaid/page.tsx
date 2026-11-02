@@ -480,13 +480,6 @@ export default function UnpaidManagementPage() {
           </a>
 
           <a
-            href="/ledger"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
-          >
-            <span>통합 지출장부 보기</span>
-          </a>
-
-          <a
             href="/unpaid"
             className="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm bg-rose-50 text-rose-700 border border-rose-200 transition-colors whitespace-nowrap"
           >

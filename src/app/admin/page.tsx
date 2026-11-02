@@ -1427,14 +1427,6 @@ export default function FinancesAdminPage() {
           </button>
 
           <a
-            href="/ledger"
-            onClick={() => setIsDrawerOpen(false)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap text-gray-600 hover:bg-gray-50"
-          >
-            <span>통합 지출장부 보기</span>
-          </a>
-
-          <a
             href="/unpaid"
             onClick={() => setIsDrawerOpen(false)}
             className="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap text-gray-600 hover:bg-gray-50"
