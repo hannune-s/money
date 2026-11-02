@@ -413,18 +413,38 @@ export default function LedgerViewPage() {
                   <span>🏠</span> 집 지출
                 </span>
                 <span className="text-[11px] font-semibold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-full tabular-nums">
-                  {summary.totalExpense > 0
-                    ? `${Math.round((summary.homeTotal / summary.totalExpense) * 100)}%`
-                    : '0%'}
+                  기준 3,500,000원 대비 {Math.round((summary.homeTotal / 3500000) * 100)}%
                 </span>
               </div>
               <div className="mt-2 text-lg sm:text-2xl font-bold text-amber-700 tabular-nums">
                 {formatNumber(summary.homeTotal)}
                 <span className="text-xs font-normal text-gray-500 ml-1">원</span>
               </div>
-              <div className="mt-1.5 inline-flex items-center gap-1 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-lg text-[11px] font-medium text-amber-700 whitespace-nowrap">
-                <span>생활·가계 순수 지출</span>
-              </div>
+              {(() => {
+                const HOME_BUDGET = 3500000;
+                const homeRemaining = HOME_BUDGET - summary.homeTotal;
+                return (
+                  <div
+                    className={`mt-1.5 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl border text-xs ${
+                      homeRemaining >= 0
+                        ? 'bg-emerald-50/90 border-emerald-200 text-emerald-800'
+                        : 'bg-red-50 border-red-200 text-red-700'
+                    }`}
+                  >
+                    <span className="font-medium whitespace-nowrap">
+                      💰 350만 원 기준 차감 후:
+                    </span>
+                    <span
+                      className={`font-extrabold tabular-nums text-sm whitespace-nowrap ${
+                        homeRemaining >= 0 ? 'text-emerald-600' : 'text-red-600'
+                      }`}
+                    >
+                      {homeRemaining > 0 ? '+' : ''}
+                      {formatNumber(homeRemaining)}원
+                    </span>
+                  </div>
+                );
+              })()}
               <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-gray-500 flex-wrap">
                 <span className="whitespace-nowrap">📌 고정: {formatNumber(summary.homeFixed)}원</span>
                 <span className="whitespace-nowrap">🔄 변동: {formatNumber(summary.homeVariable)}원</span>
