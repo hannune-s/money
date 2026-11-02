@@ -139,9 +139,11 @@ export default function FinancesAdminPage() {
   const [repayItems, setRepayItems] = useState([{ name: '', amount: '' }]);
   const [summarySaving, setSummarySaving] = useState(false);
 
-  // [3] 비밀번호 설정 상태 (공유 페이지 & 어드민 페이지)
+  // [3] 비밀번호 설정 상태 (공유 페이지 & 장부 페이지 & 어드민 페이지)
   const [dashboardPin, setDashboardPin] = useState('');
   const [savingPin, setSavingPin] = useState(false);
+  const [ledgerPin, setLedgerPin] = useState('');
+  const [savingLedgerPin, setSavingLedgerPin] = useState(false);
   const [adminPin, setAdminPin] = useState('');
   const [savingAdminPin, setSavingAdminPin] = useState(false);
 
@@ -3359,20 +3361,15 @@ export default function FinancesAdminPage() {
             </div>
           </div>
         ) : (
-          /* ==================== [메뉴 3] 비밀번호 설정 (공유페이지 & 어드민페이지) ==================== */
+          /* ==================== [메뉴 3] 비밀번호 설정 (공유페이지 & 장부페이지 & 어드민페이지) ==================== */
           <div className="max-w-xl mx-auto space-y-5">
             {/* 1. 공유 페이지 비밀번호 설정 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-6">
-              <div className="flex items-center gap-2.5 mb-2">
-                <span className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shrink-0">
-                  📊
-                </span>
-                <div>
-                  <h3 className="text-base sm:text-lg font-extrabold text-gray-900">공유 페이지 비밀번호 설정</h3>
-                  <p className="text-xs text-gray-500 break-keep">
-                    일일잔고현황 공유 페이지(메인 화면) 접속 시 물어볼 숫자 4자리 비밀번호를 변경합니다.
-                  </p>
-                </div>
+              <div className="mb-2">
+                <h3 className="text-base sm:text-lg font-extrabold text-gray-900">공유 페이지 비밀번호 설정</h3>
+                <p className="text-xs text-gray-500 mt-0.5 break-keep">
+                  일일잔고현황 공유 페이지(메인 화면) 접속 시 물어볼 숫자 4자리 비밀번호를 변경합니다.
+                </p>
               </div>
 
               <div className="flex gap-2 mt-4">
@@ -3407,18 +3404,54 @@ export default function FinancesAdminPage() {
               </div>
             </div>
 
-            {/* 2. 어드민(관리자) 페이지 비밀번호 설정 */}
+            {/* 2. 장부 페이지 비밀번호 설정 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-6">
-              <div className="flex items-center gap-2.5 mb-2">
-                <span className="w-9 h-9 rounded-xl bg-yellow-100 text-yellow-800 flex items-center justify-center text-lg shrink-0">
-                  🛡️
-                </span>
-                <div>
-                  <h3 className="text-base sm:text-lg font-extrabold text-gray-900">어드민 페이지 비밀번호 설정</h3>
-                  <p className="text-xs text-gray-500 break-keep">
-                    관리자 페이지(/admin) 접속 시 물어볼 숫자 4자리 비밀번호를 변경합니다.
-                  </p>
-                </div>
+              <div className="mb-2">
+                <h3 className="text-base sm:text-lg font-extrabold text-gray-900">장부 페이지 비밀번호 설정</h3>
+                <p className="text-xs text-gray-500 mt-0.5 break-keep">
+                  통합 지출장부 보기 페이지(/ledger) 접속 시 물어볼 숫자 4자리 비밀번호를 변경합니다.
+                </p>
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={ledgerPin}
+                  onChange={e => setLedgerPin(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="새 4자리 숫자 (예: 1234)"
+                  className="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-xl text-center tracking-[0.3em] font-mono text-base focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+                <button
+                  onClick={async () => {
+                    if (ledgerPin.length !== 4) return alert('숫자 4자리를 입력해주세요.');
+                    setSavingLedgerPin(true);
+                    const { setLedgerPin: saveLedgerPinAction } = await import('./actions');
+                    const res = await saveLedgerPinAction(ledgerPin);
+                    setSavingLedgerPin(false);
+                    if (res.success) {
+                      alert('장부 페이지 비밀번호가 변경되었습니다.');
+                      setLedgerPin('');
+                    } else {
+                      alert(res.error);
+                    }
+                  }}
+                  disabled={savingLedgerPin}
+                  className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-bold px-5 rounded-xl transition-colors whitespace-nowrap shrink-0 text-sm sm:text-base"
+                >
+                  {savingLedgerPin ? '저장 중...' : '변경 저장'}
+                </button>
+              </div>
+            </div>
+
+            {/* 3. 어드민(관리자) 페이지 비밀번호 설정 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-6">
+              <div className="mb-2">
+                <h3 className="text-base sm:text-lg font-extrabold text-gray-900">어드민 페이지 비밀번호 설정</h3>
+                <p className="text-xs text-gray-500 mt-0.5 break-keep">
+                  관리자 페이지(/admin) 접속 시 물어볼 숫자 4자리 비밀번호를 변경합니다.
+                </p>
               </div>
 
               <div className="flex gap-2 mt-4">

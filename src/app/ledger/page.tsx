@@ -19,7 +19,26 @@ export default function LedgerViewPage() {
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [pin, setPin] = useState('');
+  const [checkingPin, setCheckingPin] = useState(false);
+
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCheckingPin(true);
+    const { verifyLedgerPin } = await import('../admin/actions');
+    const isValid = await verifyLedgerPin(pin);
+    if (isValid) {
+      setIsAuthed(true);
+      sessionStorage.setItem('money_ledger_authed', 'true');
+    } else {
+      alert('비밀번호가 일치하지 않습니다.');
+      setPin('');
+    }
+    setCheckingPin(false);
+  };
 
   const loadLedgerData = async () => {
     // 1. 로컬 캐시 먼저 즉시 표시
@@ -59,8 +78,15 @@ export default function LedgerViewPage() {
   };
 
   useEffect(() => {
-    loadLedgerData();
+    if (sessionStorage.getItem('money_ledger_authed') === 'true') {
+      setIsAuthed(true);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!isAuthed) return;
+    loadLedgerData();
+  }, [isAuthed]);
 
   // 등록된 데이터의 월(YYYY-MM) 목록 추출
   const availableMonths = useMemo(() => {
@@ -245,6 +271,45 @@ export default function LedgerViewPage() {
     }));
   };
 
+  if (!isAuthed) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans pb-24">
+        <form
+          onSubmit={handleLogin}
+          className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 w-full max-w-sm flex flex-col items-center"
+        >
+          <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mb-4 font-extrabold text-lg">
+            M
+          </div>
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">통합 지출장부</h2>
+          <p className="text-sm text-gray-500 mb-8 text-center">
+            보호된 페이지입니다.
+            <br />
+            비밀번호 4자리를 입력해주세요.
+          </p>
+
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+            className="w-full text-center text-3xl tracking-[0.5em] p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-6 font-mono transition-shadow"
+            placeholder="****"
+            autoFocus
+          />
+          <button
+            type="submit"
+            disabled={checkingPin || pin.length < 4}
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-bold rounded-2xl transition-colors shadow-sm"
+          >
+            {checkingPin ? '확인 중...' : '확인'}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans pb-20">
       {/* 상단 헤더 */}
@@ -378,15 +443,19 @@ export default function LedgerViewPage() {
         </div>
 
         <div className="p-4 border-t border-gray-100 space-y-3">
-          <a
-            href="/admin"
+          <button
+            type="button"
             onClick={() => {
+              sessionStorage.removeItem('money_ledger_authed');
               sessionStorage.removeItem('money_admin_authed');
+              setIsAuthed(false);
+              setPin('');
+              setIsDrawerOpen(false);
             }}
             className="block text-center w-full py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs transition-colors whitespace-nowrap"
           >
             관리자 화면 잠금 (로그아웃)
-          </a>
+          </button>
           <div className="text-xs text-gray-400 text-center">
             © 2026 머니장부 Admin
           </div>

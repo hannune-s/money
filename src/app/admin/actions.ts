@@ -20,6 +20,7 @@ function getDbClient() {
 interface PinConfigData {
   dashboardPinHash?: string;
   adminPinHash?: string;
+  ledgerPinHash?: string;
 }
 
 async function getStoredPinConfig(): Promise<PinConfigData> {
@@ -161,5 +162,26 @@ export async function setAdminPin(newPin: string) {
   }
 
   return { success: true };
+}
+
+export async function verifyLedgerPin(pin: string) {
+  const config = await getStoredPinConfig();
+  if (config.ledgerPinHash) {
+    return comparePinValue(pin, config.ledgerPinHash);
+  }
+  if (config.dashboardPinHash && comparePinValue(pin, config.dashboardPinHash)) {
+    return true;
+  }
+  if (config.adminPinHash && comparePinValue(pin, config.adminPinHash)) {
+    return true;
+  }
+  return pin === '0000' || pin === '1234';
+}
+
+export async function setLedgerPin(newPin: string) {
+  const salt = bcrypt.genSaltSync(10);
+  const hashedPin = bcrypt.hashSync(newPin, salt);
+
+  return saveStoredPinConfig({ ledgerPinHash: hashedPin });
 }
 
