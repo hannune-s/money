@@ -402,13 +402,9 @@ export default function UnpaidManagementPage() {
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <a
-              href="/unpaid"
-              className="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
-            >
-              미납금<span className="hidden sm:inline">&nbsp;관리</span>
-            </a>
-            <a
               href="/ledger"
+              target="_blank"
+              rel="noopener noreferrer"
               className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
               장부<span className="hidden sm:inline">&nbsp;보기</span>
