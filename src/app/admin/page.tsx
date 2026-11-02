@@ -3299,7 +3299,7 @@ export default function FinancesAdminPage() {
                         })}
                       </div>
 
-                      {/* 페이지네이션 (5개 페이지 번호씩 표시 + 이전/다음) */}
+                      {/* 페이지네이션 (처음 / 이전 / 5개 페이지 번호 / 다음 / 끝) */}
                       {totalPages > 1 && (() => {
                         const pageBlockSize = 5;
                         const currentBlock = Math.floor((safePage - 1) / pageBlockSize);
@@ -3311,12 +3311,22 @@ export default function FinancesAdminPage() {
                         );
 
                         return (
-                          <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
+                          <div className="mt-4 flex items-center justify-center gap-1 sm:gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => setLgCurrentPage(1)}
+                              disabled={safePage === 1}
+                              className="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
+                              title="첫 페이지로 이동"
+                            >
+                              « 처음
+                            </button>
+
                             <button
                               type="button"
                               onClick={() => setLgCurrentPage((p) => Math.max(1, p - 1))}
                               disabled={safePage === 1}
-                              className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
+                              className="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
                             >
                               ‹ 이전
                             </button>
@@ -3340,9 +3350,19 @@ export default function FinancesAdminPage() {
                               type="button"
                               onClick={() => setLgCurrentPage((p) => Math.min(totalPages, p + 1))}
                               disabled={safePage === totalPages}
-                              className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
+                              className="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
                             >
                               다음 ›
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setLgCurrentPage(totalPages)}
+                              disabled={safePage === totalPages}
+                              className="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
+                              title="마지막 페이지로 이동"
+                            >
+                              끝 »
                             </button>
                           </div>
                         );
