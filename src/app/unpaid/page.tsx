@@ -400,18 +400,34 @@ export default function UnpaidManagementPage() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <a
-              href="/ledger"
-              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap"
+              href="/unpaid"
+              className="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
-              장부 보기
+              미납금<span className="hidden sm:inline">&nbsp;관리</span>
             </a>
             <a
-              href="/admin?menu=ledger"
-              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap"
+              href="/ledger"
+              className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
-              장부 입력
+              장부<span className="hidden sm:inline">&nbsp;보기</span>
+            </a>
+            <a
+              href="/bookmarks"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/70 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
+            >
+              북마크<span className="hidden sm:inline">&nbsp;공유페이지</span>
+            </a>
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap shrink-0"
+            >
+              공유<span className="hidden sm:inline">페이지 보기</span>
             </a>
           </div>
         </div>
@@ -435,8 +451,8 @@ export default function UnpaidManagementPage() {
               M
             </div>
             <div>
-              <div className="font-extrabold text-gray-900 text-base leading-tight whitespace-nowrap">머니장부 메뉴</div>
-              <div className="text-[11px] text-gray-500 whitespace-nowrap">전체 메뉴 빠른 이동</div>
+              <div className="font-extrabold text-gray-900 text-base leading-tight whitespace-nowrap">머니장부 Admin</div>
+              <div className="text-[11px] text-gray-500 whitespace-nowrap">자금 & 알바 통합 관리</div>
             </div>
           </div>
           <button
@@ -453,7 +469,7 @@ export default function UnpaidManagementPage() {
             href="/admin?menu=finance"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
           >
-            <span>일일 자금 현황 (어드민)</span>
+            <span>일일 자금 현황</span>
           </a>
 
           <a
@@ -482,14 +498,14 @@ export default function UnpaidManagementPage() {
             href="/admin?menu=alba"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
           >
-            <span>알바 이력 관리</span>
+            <span>알바관리</span>
           </a>
 
           <a
             href="/admin?menu=bookmark"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
           >
-            <span>북마크 관리</span>
+            <span>북마크</span>
           </a>
 
           <a
@@ -500,10 +516,10 @@ export default function UnpaidManagementPage() {
           </a>
 
           <a
-            href="/"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-indigo-600 hover:bg-indigo-50 transition-colors whitespace-nowrap mt-2 border-t border-gray-100 pt-3"
+            href="/admin?menu=password"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
           >
-            <span>일일잔고 공유페이지 보기</span>
+            <span>비밀번호 설정</span>
           </a>
         </div>
       </aside>

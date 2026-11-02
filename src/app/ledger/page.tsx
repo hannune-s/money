@@ -266,32 +266,34 @@ export default function LedgerViewPage() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-gray-100 hover:bg-gray-200/70 text-gray-800 text-xs sm:text-sm font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl border border-gray-200 outline-none cursor-pointer"
-            >
-              <option value="all">전체 기간</option>
-              {availableMonths.map((m) => (
-                <option key={m} value={m}>
-                  {m.split('-')[0]}년 {Number(m.split('-')[1])}월
-                </option>
-              ))}
-            </select>
-
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <a
               href="/unpaid"
-              className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs sm:text-sm font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
+              className="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
-              미납금 관리
+              미납금<span className="hidden sm:inline">&nbsp;관리</span>
             </a>
-
             <a
-              href="/admin?menu=ledger"
-              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs sm:text-sm font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
+              href="/ledger"
+              className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
-              장부 입력
+              장부<span className="hidden sm:inline">&nbsp;보기</span>
+            </a>
+            <a
+              href="/bookmarks"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/70 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
+            >
+              북마크<span className="hidden sm:inline">&nbsp;공유페이지</span>
+            </a>
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap shrink-0"
+            >
+              공유<span className="hidden sm:inline">페이지 보기</span>
             </a>
           </div>
         </div>
@@ -315,8 +317,8 @@ export default function LedgerViewPage() {
               M
             </div>
             <div>
-              <div className="font-extrabold text-gray-900 text-base leading-tight whitespace-nowrap">머니장부 메뉴</div>
-              <div className="text-[11px] text-gray-500 whitespace-nowrap">전체 메뉴 빠른 이동</div>
+              <div className="font-extrabold text-gray-900 text-base leading-tight whitespace-nowrap">머니장부 Admin</div>
+              <div className="text-[11px] text-gray-500 whitespace-nowrap">자금 & 알바 통합 관리</div>
             </div>
           </div>
           <button
@@ -333,7 +335,7 @@ export default function LedgerViewPage() {
             href="/admin?menu=finance"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
           >
-            <span>일일 자금 현황 (어드민)</span>
+            <span>일일 자금 현황</span>
           </a>
 
           <a
@@ -362,14 +364,14 @@ export default function LedgerViewPage() {
             href="/admin?menu=alba"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
           >
-            <span>알바 이력 관리</span>
+            <span>알바관리</span>
           </a>
 
           <a
             href="/admin?menu=bookmark"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
           >
-            <span>북마크 관리</span>
+            <span>북마크</span>
           </a>
 
           <a
@@ -380,10 +382,10 @@ export default function LedgerViewPage() {
           </a>
 
           <a
-            href="/"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-indigo-600 hover:bg-indigo-50 transition-colors whitespace-nowrap mt-2 border-t border-gray-100 pt-3"
+            href="/admin?menu=password"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
           >
-            <span>일일잔고 공유페이지 보기</span>
+            <span>비밀번호 설정</span>
           </a>
         </div>
       </aside>
@@ -393,11 +395,26 @@ export default function LedgerViewPage() {
         <section className="bg-white rounded-3xl shadow-sm border border-gray-200 p-4 sm:p-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2 border-b border-gray-100 pb-3">
             <div>
-              <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full whitespace-nowrap">
-                {selectedMonth === 'all'
-                  ? '전체 누적 결산'
-                  : `${selectedMonth.split('-')[0]}년 ${Number(selectedMonth.split('-')[1])}월 결산`}
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1 rounded-full border border-indigo-200 outline-none cursor-pointer"
+                >
+                  <option value="all">전체 누적 결산 (전체 기간)</option>
+                  {availableMonths.map((m) => (
+                    <option key={m} value={m}>
+                      {m.split('-')[0]}년 {Number(m.split('-')[1])}월 결산
+                    </option>
+                  ))}
+                </select>
+                <a
+                  href="/admin?menu=ledger"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full transition-colors whitespace-nowrap"
+                >
+                  + 장부 입력
+                </a>
+              </div>
               <h2 className="text-base sm:text-xl font-bold text-gray-900 mt-1.5 break-keep tracking-tight">
                 매장 지출 + 집 지출 토탈 현황
               </h2>
