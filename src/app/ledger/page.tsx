@@ -388,6 +388,21 @@ export default function LedgerViewPage() {
             <span>비밀번호 설정</span>
           </a>
         </div>
+
+        <div className="p-4 border-t border-gray-100 space-y-3">
+          <a
+            href="/admin"
+            onClick={() => {
+              sessionStorage.removeItem('money_admin_authed');
+            }}
+            className="block text-center w-full py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs transition-colors whitespace-nowrap"
+          >
+            관리자 화면 잠금 (로그아웃)
+          </a>
+          <div className="text-xs text-gray-400 text-center">
+            © 2026 머니장부 Admin
+          </div>
+        </div>
       </aside>
 
       <main className="max-w-3xl mx-auto px-3 sm:px-4 pt-4 sm:pt-6 space-y-5">

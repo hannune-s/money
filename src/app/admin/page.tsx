@@ -1316,34 +1316,30 @@ export default function FinancesAdminPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <span className="text-sm sm:text-xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap truncate">
+            <span className="text-sm sm:text-xl font-bold text-gray-900 tracking-tight whitespace-nowrap truncate">
               {activeMenu === 'finance'
-                ? '💸 일일 자금 현황'
+                ? '일일 자금 현황'
                 : activeMenu === 'alba'
-                ? '🚨 알바 이력 관리'
+                ? '알바관리'
                 : activeMenu === 'bookmark'
-                ? '🔖 북마크 관리'
+                ? '북마크'
                 : activeMenu === 'event'
-                ? '💌 경조사 관리'
+                ? '경조사 관리'
                 : activeMenu === 'ledger'
-                ? '📒 지출장부 입력'
-                : '🔒 비밀번호 설정'}
+                ? '지출장부 입력 (매장·집)'
+                : '비밀번호 설정'}
             </span>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <a
               href="/unpaid"
-              target="_blank"
-              rel="noopener noreferrer"
               className="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
               미납금<span className="hidden sm:inline">&nbsp;관리</span>
             </a>
             <a
               href="/ledger"
-              target="_blank"
-              rel="noopener noreferrer"
               className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition flex items-center shadow-xs whitespace-nowrap shrink-0"
             >
               장부<span className="hidden sm:inline">&nbsp;보기</span>
@@ -1398,19 +1394,18 @@ export default function FinancesAdminPage() {
           </button>
         </div>
 
-        <div className="p-4 flex flex-col gap-2 flex-1">
+        <div className="p-4 flex flex-col gap-1.5 flex-1 overflow-y-auto">
           <button
             onClick={() => {
               setActiveMenu('finance');
               setIsDrawerOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'finance'
-                ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                ? 'bg-blue-50 text-blue-600 border border-blue-200'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <span className="text-lg shrink-0">💸</span>
             <span>일일 자금 현황</span>
           </button>
 
@@ -1419,31 +1414,32 @@ export default function FinancesAdminPage() {
               setActiveMenu('ledger');
               setIsDrawerOpen(false);
             }}
-            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'ledger'
                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <span className="text-lg shrink-0">📒</span>
-              <span>지출장부 입력 (매장·집)</span>
-            </div>
-            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0">
+            <span>지출장부 입력 (매장·집)</span>
+            <span className="text-xs font-extrabold shrink-0">
               {ledgerList.length}
             </span>
           </button>
 
           <a
+            href="/ledger"
+            onClick={() => setIsDrawerOpen(false)}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap text-gray-600 hover:bg-gray-50"
+          >
+            <span>통합 지출장부 보기</span>
+          </a>
+
+          <a
             href="/unpaid"
             onClick={() => setIsDrawerOpen(false)}
-            className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap text-gray-600 hover:bg-rose-50 hover:text-rose-700"
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap text-gray-600 hover:bg-gray-50"
           >
-            <div className="flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 ml-1.5 mr-1" />
-              <span>미납금 · 외상 잔금 관리</span>
-            </div>
-            <span className="text-xs text-rose-600 font-semibold">이동 →</span>
+            <span>미납금 · 외상 잔금 관리</span>
           </a>
 
           <button
@@ -1451,17 +1447,14 @@ export default function FinancesAdminPage() {
               setActiveMenu('alba');
               setIsDrawerOpen(false);
             }}
-            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'alba'
-                ? 'bg-red-50 text-red-600 border border-red-100'
+                ? 'bg-red-50 text-red-600 border border-red-200'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <span className="text-lg shrink-0">🚨</span>
-              <span>알바관리</span>
-            </div>
-            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0">
+            <span>알바관리</span>
+            <span className="text-xs font-extrabold shrink-0">
               {albaList.length}
             </span>
           </button>
@@ -1471,17 +1464,14 @@ export default function FinancesAdminPage() {
               setActiveMenu('bookmark');
               setIsDrawerOpen(false);
             }}
-            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'bookmark'
                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <span className="text-lg shrink-0">🔖</span>
-              <span>북마크</span>
-            </div>
-            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0">
+            <span>북마크</span>
+            <span className="text-xs font-extrabold shrink-0">
               {bookmarkList.length}
             </span>
           </button>
@@ -1491,17 +1481,14 @@ export default function FinancesAdminPage() {
               setActiveMenu('event');
               setIsDrawerOpen(false);
             }}
-            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'event'
                 ? 'bg-rose-50 text-rose-600 border border-rose-200'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <span className="text-lg shrink-0">💌</span>
-              <span>경조사 관리</span>
-            </div>
-            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0">
+            <span>경조사 관리</span>
+            <span className="text-xs font-extrabold shrink-0">
               {eventList.length}
             </span>
           </button>
@@ -1511,13 +1498,12 @@ export default function FinancesAdminPage() {
               setActiveMenu('password');
               setIsDrawerOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'password'
-                ? 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <span className="text-lg shrink-0">🔒</span>
             <span>비밀번호 설정</span>
           </button>
         </div>
@@ -1532,7 +1518,7 @@ export default function FinancesAdminPage() {
             }}
             className="w-full py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs transition-colors whitespace-nowrap"
           >
-            🔐 관리자 화면 잠금 (로그아웃)
+            관리자 화면 잠금 (로그아웃)
           </button>
           <div className="text-xs text-gray-400 text-center">
             © 2026 머니장부 Admin
@@ -2948,21 +2934,16 @@ export default function FinancesAdminPage() {
             {/* 상단 장부 보기 바로가기 배너 & 요약 */}
             <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-2xl p-4 sm:p-5 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">📒</span>
-                  <h2 className="text-base sm:text-lg font-extrabold">매장 · 집 통합 지출장부 빠른 입력</h2>
-                </div>
+                <h2 className="text-base sm:text-lg font-extrabold">매장 · 집 통합 지출장부 빠른 입력</h2>
                 <p className="text-xs text-slate-300 mt-1 break-keep">
                   날짜·적요·금액만 입력하면 적요 단어를 분석해 <strong className="text-amber-300">통신비, 식자재, 공과금 등 항목으로 자동 정리</strong>됩니다.
                 </p>
               </div>
               <a
                 href="/ledger"
-                target="_blank"
-                rel="noopener noreferrer"
                 className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap"
               >
-                <span>📊 항목별 장부 화면 보기 (/ledger)</span>
+                <span>항목별 장부 화면 보기 (/ledger)</span>
                 <span>→</span>
               </a>
             </div>
