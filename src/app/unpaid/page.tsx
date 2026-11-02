@@ -41,6 +41,14 @@ export default function UnpaidManagementPage() {
   const [editingVendorId, setEditingVendorId] = useState<string | null>(null);
   const [editVendorName, setEditVendorName] = useState('');
   const [editVendorCategory, setEditVendorCategory] = useState<UnpaidCategory>('세금·4대보험');
+
+  // 개별 내역(날짜·구분·금액·내용) 수정 상태
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
+  const [editTxDate, setEditTxDate] = useState('');
+  const [editTxType, setEditTxType] = useState<'charge' | 'payment'>('charge');
+  const [editTxAmount, setEditTxAmount] = useState('');
+  const [editTxMemo, setEditTxMemo] = useState('');
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
@@ -276,17 +284,88 @@ export default function UnpaidManagementPage() {
     setEditingVendorId(v.id);
     setEditVendorName(v.name);
     setEditVendorCategory(v.category);
+    setExpandedVendors((prev) => ({ ...prev, [v.id]: true }));
+    if (v.transactions && v.transactions.length === 1) {
+      const firstTx = v.transactions[0];
+      setEditingTxId(firstTx.id);
+      setEditTxDate(firstTx.date);
+      setEditTxType(firstTx.type);
+      setEditTxAmount(formatNumber(firstTx.amount));
+      setEditTxMemo(firstTx.memo);
+    }
   };
 
   const handleSaveEditVendor = async (vendorId: string) => {
     if (!editVendorName.trim()) return alert('상호명을 입력해주세요.');
-    const updated = vendors.map((v) =>
-      v.id === vendorId
-        ? { ...v, name: editVendorName.trim(), category: editVendorCategory }
-        : v
-    );
+    const updated = vendors.map((v) => {
+      if (v.id !== vendorId) return v;
+      let nextTransactions = v.transactions || [];
+      if (editingTxId) {
+        const amt = parseNumber(editTxAmount);
+        if (amt > 0) {
+          nextTransactions = nextTransactions
+            .map((t) =>
+              t.id === editingTxId
+                ? {
+                    ...t,
+                    date: editTxDate,
+                    type: editTxType,
+                    amount: amt,
+                    memo: editTxMemo.trim() || (editTxType === 'payment' ? '일부 납부' : '미납금 등록'),
+                  }
+                : t
+            )
+            .sort((a, b) => b.date.localeCompare(a.date));
+        }
+      }
+      return {
+        ...v,
+        name: editVendorName.trim(),
+        category: editVendorCategory,
+        transactions: nextTransactions,
+      };
+    });
     await saveToDb(updated);
     setEditingVendorId(null);
+    setEditingTxId(null);
+  };
+
+  const handleStartEditTx = (tx: {
+    id: string;
+    date: string;
+    type: 'charge' | 'payment';
+    amount: number;
+    memo: string;
+  }) => {
+    setEditingTxId(tx.id);
+    setEditTxDate(tx.date);
+    setEditTxType(tx.type);
+    setEditTxAmount(formatNumber(tx.amount));
+    setEditTxMemo(tx.memo);
+  };
+
+  const handleSaveEditTx = async (vendorId: string, txId: string) => {
+    const amt = parseNumber(editTxAmount);
+    if (amt <= 0) return alert('금액을 올바르게 입력해주세요.');
+    const updated = vendors.map((v) => {
+      if (v.id !== vendorId) return v;
+      const nextTransactions = (v.transactions || [])
+        .map((t) =>
+          t.id === txId
+            ? {
+                ...t,
+                date: editTxDate,
+                type: editTxType,
+                amount: amt,
+                memo: editTxMemo.trim() || (editTxType === 'payment' ? '일부 납부' : '미납금 등록'),
+              }
+            : t
+        )
+        .sort((a, b) => b.date.localeCompare(a.date));
+      return { ...v, transactions: nextTransactions };
+    });
+    await saveToDb(updated);
+    setEditingTxId(null);
   };
 
   const toggleExpand = (id: string) => {
@@ -924,9 +1003,9 @@ export default function UnpaidManagementPage() {
                           <button
                             type="button"
                             onClick={() => handleStartEditVendor(vendor)}
-                            className="text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200/70 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap"
+                            className="text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap"
                           >
-                            상호 수정
+                            상호·내역 수정
                           </button>
                           <button
                             type="button"
@@ -939,50 +1018,112 @@ export default function UnpaidManagementPage() {
                       </div>
                     </div>
 
-                    {/* 펼쳐지는 날짜별 미납발생 / 납부 차감 상세 내역 (모바일 1줄 정렬) */}
+                    {/* 펼쳐지는 날짜별 미납발생 / 납부 차감 상세 내역 (모바일 1줄 정렬 + 인라인 수정 지원) */}
                     {isExpanded && (
                       <div className="bg-gray-50/80 border-t border-gray-100 divide-y divide-gray-100">
                         {(vendor.transactions || []).map((tx) => (
-                          <div
-                            key={tx.id}
-                            className="px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2 text-xs sm:text-sm"
-                          >
-                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                              <span className="tabular-nums text-gray-400 text-[11px] sm:text-xs shrink-0 whitespace-nowrap">
-                                <span className="sm:hidden">{tx.date.slice(5)}</span>
-                                <span className="hidden sm:inline">{tx.date}</span>
-                              </span>
-                              <span
-                                className={`text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded border shrink-0 whitespace-nowrap ${
-                                  tx.type === 'payment'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : 'bg-rose-50 text-rose-700 border-rose-200'
-                                }`}
-                              >
-                                {tx.type === 'payment' ? '납부(차감)' : '미납발생'}
-                              </span>
-                              <span className="font-normal text-gray-800 truncate min-w-0">
-                                {tx.memo}
-                              </span>
-                            </div>
+                          <div key={tx.id} className="px-3 sm:px-5 py-2.5 text-xs sm:text-sm">
+                            {editingTxId === tx.id ? (
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-white p-2.5 rounded-xl border border-indigo-200">
+                                <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 flex-1">
+                                  <input
+                                    type="date"
+                                    value={editTxDate}
+                                    onChange={(e) => setEditTxDate(e.target.value)}
+                                    className="p-1.5 border border-gray-300 rounded-lg text-xs text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                                  />
+                                  <select
+                                    value={editTxType}
+                                    onChange={(e) =>
+                                      setEditTxType(e.target.value as 'charge' | 'payment')
+                                    }
+                                    className="p-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                                  >
+                                    <option value="charge">미납발생 (+)</option>
+                                    <option value="payment">납부차감 (-)</option>
+                                  </select>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={editTxAmount}
+                                    onChange={(e) =>
+                                      setEditTxAmount(formatAmountInput(e.target.value))
+                                    }
+                                    placeholder="금액"
+                                    className="p-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-right tabular-nums text-gray-900 sm:w-28 outline-none focus:ring-2 focus:ring-indigo-500"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editTxMemo}
+                                    onChange={(e) => setEditTxMemo(e.target.value)}
+                                    placeholder="내역 메모"
+                                    className="p-1.5 border border-gray-300 rounded-lg text-xs text-gray-900 flex-1 min-w-[100px] outline-none focus:ring-2 focus:ring-indigo-500"
+                                  />
+                                </div>
+                                <div className="flex items-center justify-end gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveEditTx(vendor.id, tx.id)}
+                                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap"
+                                  >
+                                    저장
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingTxId(null)}
+                                    className="px-2 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap"
+                                  >
+                                    취소
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                                  <span className="tabular-nums text-gray-400 text-[11px] sm:text-xs shrink-0 whitespace-nowrap">
+                                    <span className="sm:hidden">{tx.date.slice(5)}</span>
+                                    <span className="hidden sm:inline">{tx.date}</span>
+                                  </span>
+                                  <span
+                                    className={`text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded border shrink-0 whitespace-nowrap ${
+                                      tx.type === 'payment'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                                    }`}
+                                  >
+                                    {tx.type === 'payment' ? '납부(차감)' : '미납발생'}
+                                  </span>
+                                  <span className="font-normal text-gray-800 truncate min-w-0">
+                                    {tx.memo}
+                                  </span>
+                                </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span
-                                className={`tabular-nums font-semibold whitespace-nowrap ${
-                                  tx.type === 'payment' ? 'text-emerald-600' : 'text-rose-600'
-                                }`}
-                              >
-                                {tx.type === 'payment' ? '-' : '+'}
-                                {formatNumber(tx.amount)}원
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteTransaction(vendor.id, tx.id)}
-                                className="text-[11px] font-medium text-red-500 hover:text-red-700 bg-white border border-gray-200 px-1.5 py-0.5 rounded whitespace-nowrap"
-                              >
-                                삭제
-                              </button>
-                            </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span
+                                    className={`tabular-nums font-semibold whitespace-nowrap ${
+                                      tx.type === 'payment' ? 'text-emerald-600' : 'text-rose-600'
+                                    }`}
+                                  >
+                                    {tx.type === 'payment' ? '-' : '+'}
+                                    {formatNumber(tx.amount)}원
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditTx(tx)}
+                                    className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap"
+                                  >
+                                    수정
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteTransaction(vendor.id, tx.id)}
+                                    className="text-[11px] font-medium text-red-600 hover:text-red-800 bg-red-50 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap"
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
