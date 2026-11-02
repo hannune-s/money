@@ -3297,43 +3297,54 @@ export default function FinancesAdminPage() {
                         })}
                       </div>
 
-                      {/* 페이지네이션 (1, 2, 3... 페이지 넘김) */}
-                      {totalPages > 1 && (
-                        <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => setLgCurrentPage((p) => Math.max(1, p - 1))}
-                            disabled={safePage === 1}
-                            className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
-                          >
-                            ‹ 이전
-                          </button>
+                      {/* 페이지네이션 (5개 페이지 번호씩 표시 + 이전/다음) */}
+                      {totalPages > 1 && (() => {
+                        const pageBlockSize = 5;
+                        const currentBlock = Math.floor((safePage - 1) / pageBlockSize);
+                        const startPage = currentBlock * pageBlockSize + 1;
+                        const endPage = Math.min(totalPages, startPage + pageBlockSize - 1);
+                        const visiblePages = Array.from(
+                          { length: endPage - startPage + 1 },
+                          (_, i) => startPage + i
+                        );
 
-                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                        return (
+                          <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
                             <button
-                              key={pageNum}
                               type="button"
-                              onClick={() => setLgCurrentPage(pageNum)}
-                              className={`w-8 h-8 rounded-lg text-xs transition-colors tabular-nums ${
-                                safePage === pageNum
-                                  ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-500 font-bold'
-                                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-medium'
-                              }`}
+                              onClick={() => setLgCurrentPage((p) => Math.max(1, p - 1))}
+                              disabled={safePage === 1}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
                             >
-                              {pageNum}
+                              ‹ 이전
                             </button>
-                          ))}
 
-                          <button
-                            type="button"
-                            onClick={() => setLgCurrentPage((p) => Math.min(totalPages, p + 1))}
-                            disabled={safePage === totalPages}
-                            className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
-                          >
-                            다음 ›
-                          </button>
-                        </div>
-                      )}
+                            {visiblePages.map((pageNum) => (
+                              <button
+                                key={pageNum}
+                                type="button"
+                                onClick={() => setLgCurrentPage(pageNum)}
+                                className={`w-8 h-8 rounded-lg text-xs transition-colors tabular-nums ${
+                                  safePage === pageNum
+                                    ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-500 font-bold'
+                                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 font-medium'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            ))}
+
+                            <button
+                              type="button"
+                              onClick={() => setLgCurrentPage((p) => Math.min(totalPages, p + 1))}
+                              disabled={safePage === totalPages}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
+                            >
+                              다음 ›
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </>
                   );
                 })()
