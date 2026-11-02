@@ -249,10 +249,9 @@ export default function LedgerViewPage() {
       {/* 상단 헤더 */}
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-xs">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <span className="text-lg sm:text-2xl shrink-0">📒</span>
-            <h1 className="text-sm sm:text-xl font-bold text-gray-900 whitespace-nowrap truncate">
-              통합 지출장부<span className="hidden sm:inline"> (매장 · 집)</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-sm sm:text-xl font-bold text-gray-900 whitespace-nowrap truncate tracking-tight">
+              통합 지출장부<span className="hidden sm:inline text-gray-500 font-medium"> (매장 · 집)</span>
             </h1>
           </div>
 
@@ -262,19 +261,19 @@ export default function LedgerViewPage() {
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="bg-gray-100 hover:bg-gray-200/70 text-gray-800 text-xs sm:text-sm font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl border border-gray-200 outline-none cursor-pointer"
             >
-              <option value="all">📅 전체 기간</option>
+              <option value="all">전체 기간</option>
               {availableMonths.map((m) => (
                 <option key={m} value={m}>
-                  📅 {m.split('-')[0]}년 {Number(m.split('-')[1])}월
+                  {m.split('-')[0]}년 {Number(m.split('-')[1])}월
                 </option>
               ))}
             </select>
 
             <a
               href="/admin?menu=ledger"
-              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs sm:text-sm font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
+              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs sm:text-sm font-semibold px-3 sm:px-3.5 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
             >
-              ✏️ 입력
+              장부 입력
             </a>
           </div>
         </div>
@@ -290,13 +289,13 @@ export default function LedgerViewPage() {
                   ? '전체 누적 결산'
                   : `${selectedMonth.split('-')[0]}년 ${Number(selectedMonth.split('-')[1])}월 결산`}
               </span>
-              <h2 className="text-base sm:text-xl font-bold text-gray-900 mt-1.5 break-keep">
+              <h2 className="text-base sm:text-xl font-bold text-gray-900 mt-1.5 break-keep tracking-tight">
                 매장 지출 + 집 지출 토탈 현황
               </h2>
             </div>
             <div className="text-right ml-auto">
               <div className="text-xs font-medium text-gray-400">총 지출 합계 (매장 + 집 전체)</div>
-              <div className="text-xl sm:text-2xl font-bold text-gray-700 tabular-nums">
+              <div className="text-xl sm:text-2xl font-bold text-gray-800 tabular-nums">
                 {formatNumber(summary.totalExpense)}
                 <span className="text-xs font-normal text-gray-400 ml-1">원</span>
               </div>
@@ -307,7 +306,6 @@ export default function LedgerViewPage() {
           <div className="bg-gradient-to-r from-rose-50 via-amber-50/70 to-orange-50 border border-rose-200 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-base shrink-0">🎯</span>
                 <span className="text-xs sm:text-sm font-bold text-rose-800 break-keep">
                   매입대금 제외 순수 지출 합계 (핵심 관리 지출)
                 </span>
@@ -334,7 +332,6 @@ export default function LedgerViewPage() {
           >
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-base shrink-0">💰</span>
                 <span
                   className={`text-xs sm:text-sm font-bold break-keep ${
                     summary.netBalance >= 0 ? 'text-emerald-900' : 'text-red-900'
@@ -356,7 +353,7 @@ export default function LedgerViewPage() {
                   <>
                     <span className="text-gray-400">+</span>
                     <span className="whitespace-nowrap">
-                      🎁 부수입 <strong className="font-bold text-purple-700 tabular-nums">{formatNumber(summary.sideIncomeTotal)}원</strong>
+                      부수입 <strong className="font-bold text-purple-700 tabular-nums">{formatNumber(summary.sideIncomeTotal)}원</strong>
                     </span>
                   </>
                 )}
@@ -372,7 +369,7 @@ export default function LedgerViewPage() {
                       key={si.id}
                       className="inline-flex items-center gap-1 text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-md tabular-nums whitespace-nowrap"
                     >
-                      🎁 {si.description}: +{formatNumber(si.amount)}원
+                      {si.description}: +{formatNumber(si.amount)}원
                     </span>
                   ))}
                 </div>
@@ -405,8 +402,8 @@ export default function LedgerViewPage() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm font-bold text-blue-700 flex items-center gap-1.5 whitespace-nowrap">
-                  <span>🏪</span> 매장 지출
+                <span className="text-xs sm:text-sm font-bold text-blue-700 whitespace-nowrap">
+                  매장 지출
                 </span>
                 <span className="text-[11px] font-semibold text-blue-600 bg-blue-100/80 px-2 py-0.5 rounded-full tabular-nums">
                   {summary.totalExpense > 0
@@ -418,13 +415,13 @@ export default function LedgerViewPage() {
                 {formatNumber(summary.storeTotal)}
                 <span className="text-xs font-normal text-gray-500 ml-1">원</span>
               </div>
-              <div className="mt-1.5 inline-flex items-center gap-1 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-rose-600 whitespace-nowrap">
-                <span>🎯 매입 제외 매장지출:</span>
+              <div className="mt-1.5 inline-flex items-center gap-1 bg-rose-50 border border-rose-200/80 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-600 whitespace-nowrap">
+                <span>매입 제외 매장지출:</span>
                 <span className="tabular-nums">{formatNumber(summary.storeTotalWithoutPurchase)}원</span>
               </div>
               <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-gray-500 flex-wrap">
-                <span className="whitespace-nowrap">📌 고정: {formatNumber(summary.storeFixed)}원</span>
-                <span className="whitespace-nowrap">🔄 변동: {formatNumber(summary.storeVariable)}원</span>
+                <span className="whitespace-nowrap">고정: {formatNumber(summary.storeFixed)}원</span>
+                <span className="whitespace-nowrap">변동: {formatNumber(summary.storeVariable)}원</span>
               </div>
             </button>
 
@@ -438,8 +435,8 @@ export default function LedgerViewPage() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm font-bold text-amber-800 flex items-center gap-1.5 whitespace-nowrap">
-                  <span>🏠</span> 집 지출
+                <span className="text-xs sm:text-sm font-bold text-amber-800 whitespace-nowrap">
+                  집 지출
                 </span>
                 <span className="text-[11px] font-semibold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-full tabular-nums">
                   기준 3,500,000원 대비 {Math.round((summary.homeTotal / 3500000) * 100)}%
@@ -461,7 +458,7 @@ export default function LedgerViewPage() {
                     }`}
                   >
                     <span className="font-medium whitespace-nowrap">
-                      💰 350만 원 기준 차감 후:
+                      350만 원 기준 차감 후:
                     </span>
                     <span
                       className={`font-extrabold tabular-nums text-sm whitespace-nowrap ${
@@ -475,8 +472,8 @@ export default function LedgerViewPage() {
                 );
               })()}
               <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-gray-500 flex-wrap">
-                <span className="whitespace-nowrap">📌 고정: {formatNumber(summary.homeFixed)}원</span>
-                <span className="whitespace-nowrap">🔄 변동: {formatNumber(summary.homeVariable)}원</span>
+                <span className="whitespace-nowrap">고정: {formatNumber(summary.homeFixed)}원</span>
+                <span className="whitespace-nowrap">변동: {formatNumber(summary.homeVariable)}원</span>
               </div>
             </button>
           </div>
@@ -485,15 +482,15 @@ export default function LedgerViewPage() {
           <div className="bg-gray-50 rounded-2xl p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-gray-600 border border-gray-100">
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
               <span className="inline-flex items-center gap-1 text-indigo-700 whitespace-nowrap">
-                📌 총 고정: <strong className="tabular-nums font-semibold">{formatNumber(summary.totalFixed)}원</strong>
+                총 고정: <strong className="tabular-nums font-semibold">{formatNumber(summary.totalFixed)}원</strong>
               </span>
               <span className="text-gray-300">|</span>
               <span className="inline-flex items-center gap-1 text-emerald-700 whitespace-nowrap">
-                🔄 총 변동: <strong className="tabular-nums font-semibold">{formatNumber(summary.totalVariable)}원</strong>
+                총 변동: <strong className="tabular-nums font-semibold">{formatNumber(summary.totalVariable)}원</strong>
               </span>
               <span className="text-gray-300">|</span>
               <span className="inline-flex items-center gap-1 text-blue-700 whitespace-nowrap">
-                🛍️ 매입대금: <strong className="tabular-nums font-semibold">{formatNumber(summary.purchaseTotal)}원</strong>
+                매입대금: <strong className="tabular-nums font-semibold">{formatNumber(summary.purchaseTotal)}원</strong>
               </span>
             </div>
           </div>
@@ -502,22 +499,22 @@ export default function LedgerViewPage() {
         {/* 2. 탭 선택 (전체 / 매장 지출 / 집 지출) & 고정/변동 필터 */}
         <section className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            {/* 매장 / 집 구분 탭 (어두운 배경 없이 밝고 선명한 컬러 버튼 적용) */}
+            {/* 매장 / 집 구분 탭 */}
             <div className="grid grid-cols-3 gap-1.5">
               {[
                 {
                   key: 'all',
-                  label: '📊 전체 합산',
+                  label: '전체 합산',
                   activeClass: 'bg-indigo-50 text-indigo-700 border-2 border-indigo-500 shadow-xs font-bold',
                 },
                 {
                   key: 'store',
-                  label: '🏪 매장 지출',
+                  label: '매장 지출',
                   activeClass: 'bg-blue-50 text-blue-700 border-2 border-blue-500 shadow-xs font-bold',
                 },
                 {
                   key: 'home',
-                  label: '🏠 집 지출',
+                  label: '집 지출',
                   activeClass: 'bg-amber-50 text-amber-800 border-2 border-amber-500 shadow-xs font-bold',
                 },
               ].map((t) => (
@@ -536,7 +533,7 @@ export default function LedgerViewPage() {
               ))}
             </div>
 
-            {/* 고정 / 변동 필터 (검정색 대신 밝은 인디고·청록 테두리 적용) */}
+            {/* 고정 / 변동 필터 */}
             <div className="flex items-center gap-1.5 self-end sm:self-auto">
               {[
                 {
@@ -546,12 +543,12 @@ export default function LedgerViewPage() {
                 },
                 {
                   key: 'fixed',
-                  label: '📌 고정만',
+                  label: '고정만',
                   activeClass: 'bg-indigo-50 text-indigo-700 border-2 border-indigo-500 font-bold',
                 },
                 {
                   key: 'variable',
-                  label: '🔄 변동만',
+                  label: '변동만',
                   activeClass: 'bg-teal-50 text-teal-700 border-2 border-teal-500 font-bold',
                 },
               ].map((cf) => (
@@ -577,7 +574,7 @@ export default function LedgerViewPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="🔍 항목명(예: 통신비, 매입) 또는 적요 검색..."
+              placeholder="항목명(예: 통신비, 매입) 또는 적요 검색..."
               className="w-full pl-4 pr-16 py-2.5 bg-white border border-gray-200 rounded-2xl text-base sm:text-sm font-normal text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none shadow-2xs"
             />
             {searchQuery && (
@@ -596,7 +593,7 @@ export default function LedgerViewPage() {
         <section className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
             <div className="text-xs sm:text-sm font-semibold text-gray-700 break-keep">
-              💡 항목을 누르면 언제·무엇이 지출되었는지 세부내역이 펼쳐집니다
+              항목을 누르면 언제·무엇이 지출되었는지 세부내역이 펼쳐집니다
             </div>
             <div className="text-xs font-medium text-gray-500 tabular-nums flex items-center gap-2 flex-wrap">
               <span className="whitespace-nowrap">표시 합계: {formatNumber(currentViewTotal)}원</span>
@@ -612,7 +609,6 @@ export default function LedgerViewPage() {
             </div>
           ) : categoryGroups.length === 0 ? (
             <div className="bg-white rounded-3xl border border-dashed border-gray-200 p-12 text-center space-y-2">
-              <div className="text-3xl">📒</div>
               <div className="text-sm font-semibold text-gray-500">
                 아직 표시할 지출 내역이 없습니다.
               </div>
@@ -639,48 +635,44 @@ export default function LedgerViewPage() {
                     <button
                       type="button"
                       onClick={() => toggleCategory(group.category)}
-                      className="w-full bg-white p-3.5 sm:p-5 text-left hover:bg-gray-50/80 transition-colors flex flex-col gap-2.5"
+                      className="w-full bg-white p-4 sm:p-5 text-left hover:bg-gray-50/80 transition-colors flex flex-col gap-2.5"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gray-100 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            {meta.icon}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                              <span className="text-sm sm:text-base font-bold text-gray-900 whitespace-nowrap">
-                                {group.category}
-                              </span>
-                              <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                {group.items.length}건
-                              </span>
-                              <span className="text-[11px] font-normal text-gray-400 tabular-nums">
-                                ({ratio}%)
-                              </span>
-                            </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${meta.barClass}`} />
+                            <span className="text-sm sm:text-base font-bold text-gray-900 whitespace-nowrap tracking-tight">
+                              {group.category}
+                            </span>
+                            <span className="text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                              {group.items.length}건
+                            </span>
+                            <span className="text-[11px] font-normal text-gray-400 tabular-nums">
+                              ({ratio}%)
+                            </span>
+                          </div>
 
-                            <div className="flex items-center gap-2 mt-0.5 text-[11px] font-normal text-gray-400 flex-wrap">
-                              {scopeTab === 'all' && (
-                                <>
-                                  {group.storeTotal > 0 && (
-                                    <span className="text-blue-600 whitespace-nowrap tabular-nums">
-                                      🏪 매장 {formatNumber(group.storeTotal)}원
-                                    </span>
-                                  )}
-                                  {group.homeTotal > 0 && (
-                                    <span className="text-amber-700 whitespace-nowrap tabular-nums">
-                                      🏠 집 {formatNumber(group.homeTotal)}원
-                                    </span>
-                                  )}
-                                </>
-                              )}
-                              {group.fixedTotal > 0 && (
-                                <span className="whitespace-nowrap tabular-nums">📌 고정 {formatNumber(group.fixedTotal)}원</span>
-                              )}
-                              {group.variableTotal > 0 && (
-                                <span className="whitespace-nowrap tabular-nums">🔄 변동 {formatNumber(group.variableTotal)}원</span>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-2.5 mt-1 pl-4 text-[11px] font-normal text-gray-400 flex-wrap">
+                            {scopeTab === 'all' && (
+                              <>
+                                {group.storeTotal > 0 && (
+                                  <span className="text-blue-600 font-medium whitespace-nowrap tabular-nums">
+                                    매장 {formatNumber(group.storeTotal)}원
+                                  </span>
+                                )}
+                                {group.homeTotal > 0 && (
+                                  <span className="text-amber-700 font-medium whitespace-nowrap tabular-nums">
+                                    집 {formatNumber(group.homeTotal)}원
+                                  </span>
+                                )}
+                              </>
+                            )}
+                            {group.fixedTotal > 0 && (
+                              <span className="whitespace-nowrap tabular-nums">고정 {formatNumber(group.fixedTotal)}원</span>
+                            )}
+                            {group.variableTotal > 0 && (
+                              <span className="whitespace-nowrap tabular-nums">변동 {formatNumber(group.variableTotal)}원</span>
+                            )}
                           </div>
                         </div>
 
@@ -726,8 +718,7 @@ export default function LedgerViewPage() {
                                     : 'bg-amber-50 text-amber-800 border-amber-200'
                                 }`}
                               >
-                                <span className="sm:hidden">{item.scope === 'store' ? '매장' : '집'}</span>
-                                <span className="hidden sm:inline">{item.scope === 'store' ? '🏪 매장' : '🏠 집'}</span>
+                                {item.scope === 'store' ? '매장' : '집'}
                               </span>
                               <span
                                 className={`text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap ${
@@ -736,8 +727,7 @@ export default function LedgerViewPage() {
                                     : 'bg-gray-200/70 text-gray-700'
                                 }`}
                               >
-                                <span className="sm:hidden">{item.costType === 'fixed' ? '고정' : '변동'}</span>
-                                <span className="hidden sm:inline">{item.costType === 'fixed' ? '📌 고정' : '🔄 변동'}</span>
+                                {item.costType === 'fixed' ? '고정' : '변동'}
                               </span>
                               <span className="font-normal text-gray-800 truncate min-w-0">
                                 {item.description}

@@ -2950,8 +2950,8 @@ export default function FinancesAdminPage() {
             {/* 빠른 입력 폼 카드 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base sm:text-lg font-extrabold text-gray-900 flex items-center gap-2">
-                  <span>{editingLgId ? '✏️ 장부 내역 수정' : '⚡ 일일 지출·수입 빠른 기록'}</span>
+                <h3 className="text-base sm:text-lg font-extrabold text-gray-900 flex items-center gap-2 tracking-tight">
+                  <span>{editingLgId ? '장부 내역 수정' : '일일 지출·수입 기록'}</span>
                 </h3>
                 {editingLgId && (
                   <button
@@ -2981,7 +2981,7 @@ export default function FinancesAdminPage() {
                             : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                         }`}
                       >
-                        <span>🏪 매장 지출</span>
+                        <span>매장 지출</span>
                       </button>
                       <button
                         type="button"
@@ -2992,7 +2992,7 @@ export default function FinancesAdminPage() {
                             : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                         }`}
                       >
-                        <span>🏠 집 지출</span>
+                        <span>집 지출</span>
                       </button>
                       <button
                         type="button"
@@ -3003,7 +3003,7 @@ export default function FinancesAdminPage() {
                             : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                         }`}
                       >
-                        <span>💰 매장 수입</span>
+                        <span>매장 수입</span>
                       </button>
                       <button
                         type="button"
@@ -3014,7 +3014,7 @@ export default function FinancesAdminPage() {
                             : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                         }`}
                       >
-                        <span>🎁 기타·부수입</span>
+                        <span>기타·부수입</span>
                       </button>
                     </div>
                   </div>
@@ -3033,7 +3033,7 @@ export default function FinancesAdminPage() {
                             : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                         }`}
                       >
-                        <span>📌 고정</span>
+                        <span>고정</span>
                       </button>
                       <button
                         type="button"
@@ -3044,7 +3044,7 @@ export default function FinancesAdminPage() {
                             : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                         }`}
                       >
-                        <span>🔄 변동</span>
+                        <span>변동</span>
                       </button>
                     </div>
                   </div>
@@ -3096,9 +3096,9 @@ export default function FinancesAdminPage() {
                       const meta = getLedgerCategoryMeta(previewClassifiedCategory);
                       return (
                         <span
-                          className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border whitespace-nowrap ${meta.badgeClass}`}
+                          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border whitespace-nowrap ${meta.badgeClass}`}
                         >
-                          <span>{meta.icon}</span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${meta.barClass}`} />
                           <span>{meta.name}</span>
                         </span>
                       );
@@ -3116,10 +3116,10 @@ export default function FinancesAdminPage() {
                       onChange={(e) => setLgManualCategory(e.target.value)}
                       className="w-full sm:w-auto text-sm sm:text-xs font-medium bg-white border border-gray-300 rounded-lg px-2.5 py-2 sm:py-1.5 text-gray-700 outline-none"
                     >
-                      <option value="">🤖 적요로 자동 분류 (추천)</option>
+                      <option value="">적요로 자동 분류 (추천)</option>
                       {LEDGER_CATEGORIES.map((cat) => (
                         <option key={cat.name} value={cat.name}>
-                          {cat.icon} {cat.name} (직접 선택)
+                          {cat.name} (직접 선택)
                         </option>
                       ))}
                     </select>
@@ -3146,8 +3146,8 @@ export default function FinancesAdminPage() {
                   {lgLoading
                     ? '저장 중...'
                     : editingLgId
-                    ? '✅ 수정 내용 저장하기'
-                    : '➕ 장부에 기록하기'}
+                    ? '수정 내용 저장하기'
+                    : '장부에 기록하기'}
                 </button>
               </form>
             </div>
@@ -3156,8 +3156,8 @@ export default function FinancesAdminPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                    📋 최근 입력 내역 ({filteredLedgerList.length}건)
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
+                    최근 입력 내역 ({filteredLedgerList.length}건)
                   </h3>
                   <p className="text-xs text-gray-500 break-keep mt-0.5">
                     항목별 합계와 클릭 시 세부내역은 상단의 <a href="/ledger" target="_blank" className="text-emerald-600 font-semibold underline whitespace-nowrap">장부 보기(/ledger)</a> 화면에서 한눈에 볼 수 있습니다.
@@ -3167,10 +3167,10 @@ export default function FinancesAdminPage() {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {[
                     { key: 'all', label: '전체' },
-                    { key: 'store', label: '🏪 매장' },
-                    { key: 'home', label: '🏠 집' },
-                    { key: 'income', label: '💰 매장수입' },
-                    { key: 'side_income', label: '🎁 부수입' },
+                    { key: 'store', label: '매장' },
+                    { key: 'home', label: '집' },
+                    { key: 'income', label: '매장수입' },
+                    { key: 'side_income', label: '부수입' },
                   ].map((tab) => (
                     <button
                       key={tab.key}
@@ -3233,7 +3233,7 @@ export default function FinancesAdminPage() {
                                   <span className="hidden sm:inline">{item.date}</span>
                                 </span>
                                 <span
-                                  className={`text-[10px] sm:text-[11px] font-medium px-1 sm:px-2 py-0.5 rounded shrink-0 whitespace-nowrap ${
+                                  className={`text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded shrink-0 whitespace-nowrap ${
                                     item.scope === 'store'
                                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                       : item.scope === 'home'
@@ -3243,24 +3243,13 @@ export default function FinancesAdminPage() {
                                       : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                   }`}
                                 >
-                                  <span className="sm:hidden">
-                                    {item.scope === 'store'
-                                      ? '매장'
-                                      : item.scope === 'home'
-                                      ? '집'
-                                      : item.scope === 'side_income'
-                                      ? '부수입'
-                                      : '수입'}
-                                  </span>
-                                  <span className="hidden sm:inline">
-                                    {item.scope === 'store'
-                                      ? '🏪 매장'
-                                      : item.scope === 'home'
-                                      ? '🏠 집'
-                                      : item.scope === 'side_income'
-                                      ? '🎁 부수입'
-                                      : '💰 매장수입'}
-                                  </span>
+                                  {item.scope === 'store'
+                                    ? '매장'
+                                    : item.scope === 'home'
+                                    ? '집'
+                                    : item.scope === 'side_income'
+                                    ? '부수입'
+                                    : '매장수입'}
                                 </span>
                                 {item.scope !== 'income' && item.scope !== 'side_income' && (
                                   <span
@@ -3270,22 +3259,14 @@ export default function FinancesAdminPage() {
                                         : 'bg-teal-50 text-teal-700'
                                     }`}
                                   >
-                                    <span className="sm:hidden">{item.costType === 'fixed' ? '고정' : '변동'}</span>
-                                    <span className="hidden sm:inline">
-                                      {item.costType === 'fixed' ? '📌 고정' : '🔄 변동'}
-                                    </span>
+                                    {item.costType === 'fixed' ? '고정' : '변동'}
                                   </span>
                                 )}
                                 <span
-                                  className={`hidden sm:inline-flex text-[11px] font-medium px-2 py-0.5 rounded-md border shrink-0 whitespace-nowrap ${catMeta.badgeClass}`}
+                                  className={`hidden sm:inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md border shrink-0 whitespace-nowrap ${catMeta.badgeClass}`}
                                 >
-                                  {catMeta.icon} {catMeta.name}
-                                </span>
-                                <span
-                                  className={`sm:hidden text-[10px] font-medium px-1 py-0.5 rounded border shrink-0 whitespace-nowrap ${catMeta.badgeClass}`}
-                                  title={catMeta.name}
-                                >
-                                  {catMeta.icon}
+                                  <span className={`w-1.5 h-1.5 rounded-full ${catMeta.barClass}`} />
+                                  {catMeta.name}
                                 </span>
                                 <span className="text-xs sm:text-sm font-normal text-gray-800 truncate min-w-0">
                                   {item.description}
