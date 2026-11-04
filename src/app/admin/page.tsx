@@ -1677,49 +1677,88 @@ export default function FinancesAdminPage() {
                 </button>
               </div>
 
-              {quickLinks.length > 0 ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {quickLinks.map((item) => (
-                    <div
-                      key={item.id}
-                      className="inline-flex items-center bg-slate-50 hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-xl transition-colors overflow-hidden"
-                    >
-                      <a
-                        href={formatExternalUrl(item.url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 hover:text-indigo-700 flex items-center gap-1.5 whitespace-nowrap"
-                      >
-                        <span>{item.title}</span>
-                        <span className="text-indigo-500 text-xs">↗</span>
-                      </a>
-                      {isQlFormOpen && (
-                        <div className="flex items-center border-l border-slate-200 pr-1.5 pl-1 gap-0.5 bg-white/80 py-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingQlId(item.id);
-                              setQlTitle(item.title);
-                              setQlUrl(item.url);
-                              setIsQlFormOpen(true);
-                            }}
-                            className="text-[11px] font-semibold text-gray-500 hover:text-indigo-600 px-1.5 py-0.5 rounded"
+              {quickLinks.length > 0 ? (() => {
+                const pillStyles = [
+                  {
+                    wrap: 'bg-indigo-50/90 hover:bg-indigo-100 border-indigo-200 text-indigo-800',
+                    dot: 'bg-indigo-500',
+                    arrow: 'text-indigo-500',
+                  },
+                  {
+                    wrap: 'bg-emerald-50/90 hover:bg-emerald-100 border-emerald-200 text-emerald-800',
+                    dot: 'bg-emerald-500',
+                    arrow: 'text-emerald-600',
+                  },
+                  {
+                    wrap: 'bg-amber-50/90 hover:bg-amber-100 border-amber-200 text-amber-900',
+                    dot: 'bg-amber-500',
+                    arrow: 'text-amber-600',
+                  },
+                  {
+                    wrap: 'bg-sky-50/90 hover:bg-sky-100 border-sky-200 text-sky-800',
+                    dot: 'bg-sky-500',
+                    arrow: 'text-sky-600',
+                  },
+                  {
+                    wrap: 'bg-rose-50/90 hover:bg-rose-100 border-rose-200 text-rose-800',
+                    dot: 'bg-rose-500',
+                    arrow: 'text-rose-500',
+                  },
+                  {
+                    wrap: 'bg-violet-50/90 hover:bg-violet-100 border-violet-200 text-violet-800',
+                    dot: 'bg-violet-500',
+                    arrow: 'text-violet-500',
+                  },
+                ];
+
+                return (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {quickLinks.map((item, idx) => {
+                      const style = pillStyles[idx % pillStyles.length];
+                      return (
+                        <div
+                          key={item.id}
+                          className={`inline-flex items-center border rounded-xl transition-all shadow-2xs overflow-hidden ${style.wrap}`}
+                        >
+                          <a
+                            href={formatExternalUrl(item.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3.5 py-2 text-xs sm:text-sm font-bold flex items-center gap-2 whitespace-nowrap"
                           >
-                            수정
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteQuickLink(item.id)}
-                            className="text-[11px] font-semibold text-gray-400 hover:text-red-600 px-1.5 py-0.5 rounded"
-                          >
-                            삭제
-                          </button>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
+                            <span>{item.title}</span>
+                            <span className={`text-xs font-extrabold ${style.arrow}`}>↗</span>
+                          </a>
+                          {isQlFormOpen && (
+                            <div className="flex items-center border-l border-black/10 pr-1.5 pl-1 gap-0.5 bg-white/85 py-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingQlId(item.id);
+                                  setQlTitle(item.title);
+                                  setQlUrl(item.url);
+                                  setIsQlFormOpen(true);
+                                }}
+                                className="text-[11px] font-semibold text-gray-600 hover:text-indigo-600 px-1.5 py-0.5 rounded"
+                              >
+                                수정
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteQuickLink(item.id)}
+                                className="text-[11px] font-semibold text-gray-500 hover:text-red-600 px-1.5 py-0.5 rounded"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
+                      );
+                    })}
+                  </div>
+                );
+              })() : (
                 <p className="mt-2.5 text-xs text-gray-400">
                   아직 등록된 즐겨찾기 링크가 없습니다. 우측 상단 [+ 링크 추가 · 편집] 버튼을 눌러 자주 쓰는 사이트를 등록해보세요.
                 </p>

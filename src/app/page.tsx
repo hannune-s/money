@@ -178,30 +178,69 @@ export default function FinancesDashboardPage() {
 
         <div className="p-6 sm:p-8">
           {/* 즐겨찾기 바로가기 (전달사항 위 항상 표시) */}
-          {quickLinks.length > 0 && (
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 mb-6 shadow-xs">
-              <div className="flex items-center justify-between gap-2 mb-2.5">
-                <h2 className="text-slate-800 text-sm sm:text-base font-extrabold tracking-tight">
-                  즐겨찾기 바로가기
-                </h2>
-                <span className="text-[11px] text-slate-400 font-medium">버튼을 누르면 이동합니다</span>
+          {quickLinks.length > 0 && (() => {
+            const pillStyles = [
+              {
+                wrap: 'bg-indigo-50/90 hover:bg-indigo-100 text-indigo-800 border-indigo-200',
+                dot: 'bg-indigo-500',
+                arrow: 'text-indigo-500',
+              },
+              {
+                wrap: 'bg-emerald-50/90 hover:bg-emerald-100 text-emerald-800 border-emerald-200',
+                dot: 'bg-emerald-500',
+                arrow: 'text-emerald-600',
+              },
+              {
+                wrap: 'bg-amber-50/90 hover:bg-amber-100 text-amber-900 border-amber-200',
+                dot: 'bg-amber-500',
+                arrow: 'text-amber-600',
+              },
+              {
+                wrap: 'bg-sky-50/90 hover:bg-sky-100 text-sky-800 border-sky-200',
+                dot: 'bg-sky-500',
+                arrow: 'text-sky-600',
+              },
+              {
+                wrap: 'bg-rose-50/90 hover:bg-rose-100 text-rose-800 border-rose-200',
+                dot: 'bg-rose-500',
+                arrow: 'text-rose-500',
+              },
+              {
+                wrap: 'bg-violet-50/90 hover:bg-violet-100 text-violet-800 border-violet-200',
+                dot: 'bg-violet-500',
+                arrow: 'text-violet-500',
+              },
+            ];
+
+            return (
+              <div className="bg-gradient-to-r from-indigo-50/40 via-white to-slate-50/50 border border-indigo-100 rounded-2xl p-4 sm:p-5 mb-6 shadow-xs">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h2 className="text-indigo-950 text-sm sm:text-base font-extrabold tracking-tight">
+                    즐겨찾기 바로가기
+                  </h2>
+                  <span className="text-[11px] text-indigo-400 font-semibold">버튼을 누르면 이동합니다</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {quickLinks.map((item, idx) => {
+                    const style = pillStyles[idx % pillStyles.length];
+                    return (
+                      <a
+                        key={item.id}
+                        href={formatExternalUrl(item.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-2 border font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow-2xs transition-all hover:-translate-y-0.5 whitespace-nowrap ${style.wrap}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
+                        <span>{item.title}</span>
+                        <span className={`text-xs font-extrabold ${style.arrow}`}>↗</span>
+                      </a>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {quickLinks.map((item) => (
-                  <a
-                    key={item.id}
-                    href={formatExternalUrl(item.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 bg-white hover:bg-indigo-50 text-slate-800 hover:text-indigo-700 border border-slate-200 hover:border-indigo-300 font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow-2xs transition-colors whitespace-nowrap"
-                  >
-                    <span>{item.title}</span>
-                    <span className="text-indigo-500 text-xs">↗</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {loading ? (
             <div className="text-center py-16">
