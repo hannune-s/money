@@ -3,8 +3,24 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
+const QUICK_LINKS_STORAGE_DATE = '1970-01-08';
+
+interface QuickLinkItem {
+  id: string;
+  title: string;
+  url: string;
+}
+
+const formatExternalUrl = (rawUrl: string) => {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return '#';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
 export default function FinancesDashboardPage() {
   const [data, setData] = useState<any>(null);
+  const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
   const [loading, setLoading] = useState(true);
   
   const getKstDate = () => {
@@ -18,6 +34,35 @@ export default function FinancesDashboardPage() {
   const displayDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toLocaleDateString('ko-KR', dateOptions);
 
   const formatNumber = (num: number) => num.toLocaleString('ko-KR');
+
+  const loadQuickLinks = async () => {
+    try {
+      const { data: qlData } = await supabase
+        .from('money_finances')
+        .select('memo')
+        .eq('target_date', QUICK_LINKS_STORAGE_DATE)
+        .maybeSingle();
+
+      if (qlData && qlData.memo) {
+        const parsed = JSON.parse(qlData.memo);
+        if (Array.isArray(parsed)) {
+          setQuickLinks(parsed);
+          return;
+        }
+      }
+      const local = localStorage.getItem('money_quick_links');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed)) {
+          setQuickLinks(parsed);
+          return;
+        }
+      }
+      setQuickLinks([{ id: 'ql-default-1', title: '일품한우', url: 'https://www.ilpoomhanwoo.com/' }]);
+    } catch {
+      setQuickLinks([{ id: 'ql-default-1', title: '일품한우', url: 'https://www.ilpoomhanwoo.com/' }]);
+    }
+  };
 
   const loadDashboard = async () => {
     try {
@@ -69,6 +114,7 @@ export default function FinancesDashboardPage() {
   useEffect(() => {
     if (!isAuthed) return;
     loadDashboard();
+    loadQuickLinks();
 
     // 실시간 구독
     const channel = supabase
@@ -77,8 +123,11 @@ export default function FinancesDashboardPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'money_finances' },
         (payload) => {
-          if (payload.new && (payload.new as any).target_date === targetDate) {
+          const changedDate = payload.new ? (payload.new as any).target_date : null;
+          if (changedDate === targetDate) {
             loadDashboard();
+          } else if (changedDate === QUICK_LINKS_STORAGE_DATE) {
+            loadQuickLinks();
           }
         }
       )
@@ -128,6 +177,32 @@ export default function FinancesDashboardPage() {
         </div>
 
         <div className="p-6 sm:p-8">
+          {/* 즐겨찾기 바로가기 (전달사항 위 항상 표시) */}
+          {quickLinks.length > 0 && (
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 mb-6 shadow-xs">
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <h2 className="text-slate-800 text-sm sm:text-base font-extrabold tracking-tight">
+                  즐겨찾기 바로가기
+                </h2>
+                <span className="text-[11px] text-slate-400 font-medium">버튼을 누르면 이동합니다</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {quickLinks.map((item) => (
+                  <a
+                    key={item.id}
+                    href={formatExternalUrl(item.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 bg-white hover:bg-indigo-50 text-slate-800 hover:text-indigo-700 border border-slate-200 hover:border-indigo-300 font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow-2xs transition-colors whitespace-nowrap"
+                  >
+                    <span>{item.title}</span>
+                    <span className="text-indigo-500 text-xs">↗</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="text-center py-16">
               <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>

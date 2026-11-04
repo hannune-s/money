@@ -76,10 +76,17 @@ const getCategoryMeta = (catName: string) => {
   return { name: catName, icon: '📌', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' };
 };
 
+interface QuickLinkItem {
+  id: string;
+  title: string;
+  url: string;
+}
+
 const ALBA_STORAGE_DATE = '1970-01-01';
 const TOTAL_SUMMARY_STORAGE_DATE = '1970-01-03';
 const BOOKMARK_STORAGE_DATE = '1970-01-04';
 const EVENT_STORAGE_DATE = '1970-01-05';
+const QUICK_LINKS_STORAGE_DATE = '1970-01-08';
 
 const formatExternalUrl = (rawUrl: string) => {
   const trimmed = rawUrl.trim();
@@ -130,6 +137,14 @@ export default function FinancesAdminPage() {
   const [status, setStatus] = useState({ msg: '', type: '' });
   const [loading, setLoading] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+
+  // [1-1] 전달사항 위 고정 즐겨찾기 링크 상태
+  const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
+  const [qlTitle, setQlTitle] = useState('');
+  const [qlUrl, setQlUrl] = useState('');
+  const [editingQlId, setEditingQlId] = useState<string | null>(null);
+  const [isQlFormOpen, setIsQlFormOpen] = useState(false);
+  const [qlSaving, setQlSaving] = useState(false);
 
   // [1-2] 토탈 현황 (현재까지 매출·매입·지출) 및 차입·상환 상태
   const [cumSales, setCumSales] = useState('');
@@ -302,7 +317,111 @@ export default function FinancesAdminPage() {
     loadEventRecords();
     loadLedgerRecords();
     loadTotalSummary();
+    loadQuickLinks();
   }, []);
+
+  const saveQuickLinksToDb = async (nextList: QuickLinkItem[]) => {
+    setQuickLinks(nextList);
+    localStorage.setItem('money_quick_links', JSON.stringify(nextList));
+    setQlSaving(true);
+    try {
+      await supabase.from('money_finances').upsert(
+        {
+          target_date: QUICK_LINKS_STORAGE_DATE,
+          accounts: [],
+          expenditures: [],
+          total_account_balance: 0,
+          total_expenditure: 0,
+          final_balance: 0,
+          memo: JSON.stringify(nextList),
+        },
+        { onConflict: 'target_date' }
+      );
+    } catch {
+      // ignore
+    } finally {
+      setQlSaving(false);
+    }
+  };
+
+  const loadQuickLinks = async () => {
+    const defaultInit: QuickLinkItem[] = [
+      { id: 'ql-default-1', title: '일품한우', url: 'https://www.ilpoomhanwoo.com/' },
+    ];
+    try {
+      const { data } = await supabase
+        .from('money_finances')
+        .select('memo')
+        .eq('target_date', QUICK_LINKS_STORAGE_DATE)
+        .maybeSingle();
+
+      if (data && data.memo) {
+        const parsed = JSON.parse(data.memo);
+        if (Array.isArray(parsed)) {
+          setQuickLinks(parsed);
+          localStorage.setItem('money_quick_links', JSON.stringify(parsed));
+          return;
+        }
+      }
+      const local = localStorage.getItem('money_quick_links');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed)) {
+          setQuickLinks(parsed);
+          return;
+        }
+      }
+      // 최초 1회 기본값 저장
+      await saveQuickLinksToDb(defaultInit);
+    } catch {
+      const local = localStorage.getItem('money_quick_links');
+      if (local) {
+        try {
+          setQuickLinks(JSON.parse(local));
+          return;
+        } catch {
+          // ignore
+        }
+      }
+      setQuickLinks(defaultInit);
+    }
+  };
+
+  const handleSaveQuickLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedTitle = qlTitle.trim();
+    const trimmedUrl = qlUrl.trim();
+    if (!trimmedTitle || !trimmedUrl) {
+      alert('링크 이름과 인터넷 주소를 모두 입력해주세요.');
+      return;
+    }
+    const formattedUrl = formatExternalUrl(trimmedUrl);
+    let nextList: QuickLinkItem[];
+    if (editingQlId) {
+      nextList = quickLinks.map((item) =>
+        item.id === editingQlId ? { ...item, title: trimmedTitle, url: formattedUrl } : item
+      );
+    } else {
+      nextList = [
+        ...quickLinks,
+        { id: `ql-${Date.now()}`, title: trimmedTitle, url: formattedUrl },
+      ];
+    }
+    await saveQuickLinksToDb(nextList);
+    setQlTitle('');
+    setQlUrl('');
+    setEditingQlId(null);
+  };
+
+  const handleDeleteQuickLink = async (id: string) => {
+    const nextList = quickLinks.filter((item) => item.id !== id);
+    await saveQuickLinksToDb(nextList);
+    if (editingQlId === id) {
+      setEditingQlId(null);
+      setQlTitle('');
+      setQlUrl('');
+    }
+  };
 
   const applySummaryParsed = (parsed: any) => {
     if (!parsed || typeof parsed !== 'object') return;
@@ -1529,6 +1648,126 @@ export default function FinancesAdminPage() {
                 onChange={e => setTargetDate(e.target.value)}
                 className="p-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm sm:text-base"
               />
+            </div>
+
+            {/* 고정 즐겨찾기 바로가기 (전달사항 위 — 공유페이지 연동) */}
+            <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-gray-900 text-sm sm:text-base font-extrabold tracking-tight whitespace-nowrap">
+                    즐겨찾기 바로가기
+                  </h2>
+                  <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
+                    (날짜와 무관하게 고정되며 공유페이지 상단에도 버튼이 표시됩니다)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsQlFormOpen((prev) => !prev);
+                    if (isQlFormOpen) {
+                      setEditingQlId(null);
+                      setQlTitle('');
+                      setQlUrl('');
+                    }
+                  }}
+                  className="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors whitespace-nowrap shrink-0"
+                >
+                  {isQlFormOpen ? '편집 닫기' : '+ 링크 추가 · 편집'}
+                </button>
+              </div>
+
+              {quickLinks.length > 0 ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {quickLinks.map((item) => (
+                    <div
+                      key={item.id}
+                      className="inline-flex items-center bg-slate-50 hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-xl transition-colors overflow-hidden"
+                    >
+                      <a
+                        href={formatExternalUrl(item.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 hover:text-indigo-700 flex items-center gap-1.5 whitespace-nowrap"
+                      >
+                        <span>{item.title}</span>
+                        <span className="text-indigo-500 text-xs">↗</span>
+                      </a>
+                      {isQlFormOpen && (
+                        <div className="flex items-center border-l border-slate-200 pr-1.5 pl-1 gap-0.5 bg-white/80 py-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingQlId(item.id);
+                              setQlTitle(item.title);
+                              setQlUrl(item.url);
+                              setIsQlFormOpen(true);
+                            }}
+                            className="text-[11px] font-semibold text-gray-500 hover:text-indigo-600 px-1.5 py-0.5 rounded"
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteQuickLink(item.id)}
+                            className="text-[11px] font-semibold text-gray-400 hover:text-red-600 px-1.5 py-0.5 rounded"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2.5 text-xs text-gray-400">
+                  아직 등록된 즐겨찾기 링크가 없습니다. 우측 상단 [+ 링크 추가 · 편집] 버튼을 눌러 자주 쓰는 사이트를 등록해보세요.
+                </p>
+              )}
+
+              {isQlFormOpen && (
+                <form
+                  onSubmit={handleSaveQuickLink}
+                  className="mt-3.5 pt-3.5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-12 gap-2"
+                >
+                  <input
+                    type="text"
+                    value={qlTitle}
+                    onChange={(e) => setQlTitle(e.target.value)}
+                    placeholder="버튼 이름 (예: 일품한우)"
+                    className="sm:col-span-4 p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    value={qlUrl}
+                    onChange={(e) => setQlUrl(e.target.value)}
+                    placeholder="인터넷 주소 (예: https://www.ilpoomhanwoo.com/)"
+                    className="sm:col-span-6 p-2.5 bg-gray-50 border border-gray-300 rounded-xl text-xs sm:text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <div className="sm:col-span-2 flex gap-1.5">
+                    <button
+                      type="submit"
+                      disabled={qlSaving}
+                      className="flex-1 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors whitespace-nowrap"
+                    >
+                      {editingQlId ? '수정 저장' : '추가'}
+                    </button>
+                    {editingQlId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingQlId(null);
+                          setQlTitle('');
+                          setQlUrl('');
+                        }}
+                        className="py-2.5 px-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl whitespace-nowrap"
+                      >
+                        취소
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
             </div>
 
             {/* 전달사항 메모 (최종 현잔고 위) */}
