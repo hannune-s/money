@@ -1542,6 +1542,29 @@ export default function FinancesAdminPage() {
                 placeholder="오늘의 전달사항이나 공유할 내용을 입력하세요." 
                 className="w-full p-3.5 sm:p-4 border border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-gray-800 min-h-[100px] resize-y bg-white text-sm"
               />
+              {(() => {
+                const urls = memo.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/gi);
+                if (!urls || urls.length === 0) return null;
+                return (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-yellow-800 shrink-0">바로가기:</span>
+                    {Array.from(new Set(urls)).map((rawUrl, i) => {
+                      const href = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+                      return (
+                        <a
+                          key={i}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-white border border-yellow-300 px-2.5 py-1 rounded-lg underline underline-offset-2 break-all"
+                        >
+                          {rawUrl} ↗
+                        </a>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* 1. 토탈 현황 (현재까지 매출 / 매입 / 지출 -> 현잔고) */}

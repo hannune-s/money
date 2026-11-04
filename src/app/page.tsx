@@ -142,7 +142,25 @@ export default function FinancesDashboardPage() {
                     <span className="mr-2">📝</span> 전달사항
                   </h2>
                   <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-sm sm:text-base">
-                    {data.memo}
+                    {String(data.memo)
+                      .split(/(https?:\/\/[^\s]+|www\.[^\s]+)/gi)
+                      .map((part, idx) => {
+                        if (/^(https?:\/\/[^\s]+|www\.[^\s]+)$/i.test(part)) {
+                          const href = /^https?:\/\//i.test(part) ? part : `https://${part}`;
+                          return (
+                            <a
+                              key={idx}
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2 font-semibold break-all"
+                            >
+                              {part}
+                            </a>
+                          );
+                        }
+                        return <span key={idx}>{part}</span>;
+                      })}
                   </div>
                 </div>
               )}
