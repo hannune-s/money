@@ -11,6 +11,8 @@ import {
   getLedgerCategoryMeta,
   autoClassifyLedgerCategory,
 } from '@/lib/ledger';
+import { UNPAID_STORAGE_DATE } from '@/lib/unpaid';
+import UnpaidManagerSection from '@/components/UnpaidManagerSection';
 
 interface AlbaRecord {
   id: string;
@@ -126,8 +128,19 @@ export default function FinancesAdminPage() {
   const [checkingLoginPin, setCheckingLoginPin] = useState(false);
 
   // 네비게이션 및 메뉴 상태
-  const [activeMenu, setActiveMenu] = useState<'finance' | 'alba' | 'bookmark' | 'event' | 'ledger' | 'password'>('finance');
+  type AdminMenuType = 'finance' | 'alba' | 'bookmark' | 'event' | 'ledger' | 'unpaid' | 'password';
+  const [activeMenu, setActiveMenu] = useState<AdminMenuType>('finance');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [unpaidVendorCount, setUnpaidVendorCount] = useState(0);
+
+  const selectMenu = (menu: AdminMenuType) => {
+    setActiveMenu(menu);
+    setIsDrawerOpen(false);
+    if (typeof window !== 'undefined') {
+      const nextUrl = menu === 'finance' ? '/admin' : `/admin?menu=${menu}`;
+      window.history.replaceState(null, '', nextUrl);
+    }
+  };
 
   // [1] 일일 자금 현황 상태
   const [accounts, setAccounts] = useState(defaultAccounts);
@@ -281,6 +294,7 @@ export default function FinancesAdminPage() {
       const menuParam = params.get('menu');
       if (
         menuParam === 'ledger' ||
+        menuParam === 'unpaid' ||
         menuParam === 'event' ||
         menuParam === 'bookmark' ||
         menuParam === 'alba' ||
@@ -288,9 +302,36 @@ export default function FinancesAdminPage() {
         menuParam === 'password'
       ) {
         setActiveMenu(menuParam);
+        if (menuParam === 'finance') {
+          window.history.replaceState(null, '', '/admin');
+        }
       }
     }
   }, []);
+
+  const loadUnpaidVendorCount = async () => {
+    try {
+      const localVendors = localStorage.getItem('money_unpaid_vendors');
+      if (localVendors) {
+        const parsed = JSON.parse(localVendors);
+        if (Array.isArray(parsed)) setUnpaidVendorCount(parsed.length);
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      const { data } = await supabase
+        .from('money_finances')
+        .select('accounts')
+        .eq('target_date', UNPAID_STORAGE_DATE)
+        .maybeSingle();
+      if (data && Array.isArray(data.accounts)) {
+        setUnpaidVendorCount(data.accounts.length);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,6 +359,7 @@ export default function FinancesAdminPage() {
     loadLedgerRecords();
     loadTotalSummary();
     loadQuickLinks();
+    loadUnpaidVendorCount();
   }, []);
 
   const saveQuickLinksToDb = async (nextList: QuickLinkItem[]) => {
@@ -1448,6 +1490,8 @@ export default function FinancesAdminPage() {
                 ? '경조사 관리'
                 : activeMenu === 'ledger'
                 ? '지출장부 입력 (매장·집)'
+                : activeMenu === 'unpaid'
+                ? '미납금 · 외상 잔금 관리'
                 : '비밀번호 설정'}
             </span>
           </div>
@@ -1513,10 +1557,7 @@ export default function FinancesAdminPage() {
 
         <div className="p-4 flex flex-col gap-1.5 flex-1 overflow-y-auto">
           <button
-            onClick={() => {
-              setActiveMenu('finance');
-              setIsDrawerOpen(false);
-            }}
+            onClick={() => selectMenu('finance')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'finance'
                 ? 'bg-blue-50 text-blue-600 border border-blue-200'
@@ -1527,10 +1568,7 @@ export default function FinancesAdminPage() {
           </button>
 
           <button
-            onClick={() => {
-              setActiveMenu('ledger');
-              setIsDrawerOpen(false);
-            }}
+            onClick={() => selectMenu('ledger')}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'ledger'
                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -1543,19 +1581,22 @@ export default function FinancesAdminPage() {
             </span>
           </button>
 
-          <a
-            href="/unpaid"
-            onClick={() => setIsDrawerOpen(false)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap text-gray-600 hover:bg-gray-50"
+          <button
+            onClick={() => selectMenu('unpaid')}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+              activeMenu === 'unpaid'
+                ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
           >
             <span>미납금 · 외상 잔금 관리</span>
-          </a>
+            <span className="text-xs font-extrabold shrink-0">
+              {unpaidVendorCount}
+            </span>
+          </button>
 
           <button
-            onClick={() => {
-              setActiveMenu('alba');
-              setIsDrawerOpen(false);
-            }}
+            onClick={() => selectMenu('alba')}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'alba'
                 ? 'bg-red-50 text-red-600 border border-red-200'
@@ -1569,10 +1610,7 @@ export default function FinancesAdminPage() {
           </button>
 
           <button
-            onClick={() => {
-              setActiveMenu('bookmark');
-              setIsDrawerOpen(false);
-            }}
+            onClick={() => selectMenu('bookmark')}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'bookmark'
                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -1586,10 +1624,7 @@ export default function FinancesAdminPage() {
           </button>
 
           <button
-            onClick={() => {
-              setActiveMenu('event');
-              setIsDrawerOpen(false);
-            }}
+            onClick={() => selectMenu('event')}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'event'
                 ? 'bg-rose-50 text-rose-600 border border-rose-200'
@@ -1603,10 +1638,7 @@ export default function FinancesAdminPage() {
           </button>
 
           <button
-            onClick={() => {
-              setActiveMenu('password');
-              setIsDrawerOpen(false);
-            }}
+            onClick={() => selectMenu('password')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'password'
                 ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
@@ -3681,6 +3713,9 @@ export default function FinancesAdminPage() {
               )}
             </div>
           </div>
+        ) : activeMenu === 'unpaid' ? (
+          /* ==================== [메뉴 2-5] 미납금 · 외상 잔금 관리 ==================== */
+          <UnpaidManagerSection onVendorCountChange={setUnpaidVendorCount} />
         ) : (
           /* ==================== [메뉴 3] 비밀번호 설정 (공유페이지 & 장부페이지 & 어드민페이지) ==================== */
           <div className="max-w-xl mx-auto space-y-5">
