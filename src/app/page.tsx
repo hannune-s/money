@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 const QUICK_LINKS_STORAGE_DATE = '1970-01-08';
+const PINNED_MEMO_STORAGE_DATE = '1970-01-09';
 
 interface QuickLinkItem {
   id: string;
@@ -18,9 +19,32 @@ const formatExternalUrl = (rawUrl: string) => {
   return `https://${trimmed}`;
 };
 
+const renderTextWithLinks = (text: string) => {
+  return String(text)
+    .split(/(https?:\/\/[^\s]+|www\.[^\s]+)/gi)
+    .map((part, idx) => {
+      if (/^(https?:\/\/[^\s]+|www\.[^\s]+)$/i.test(part)) {
+        const href = /^https?:\/\//i.test(part) ? part : `https://${part}`;
+        return (
+          <a
+            key={idx}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2 font-semibold break-all"
+          >
+            {part}
+          </a>
+        );
+      }
+      return <span key={idx}>{part}</span>;
+    });
+};
+
 export default function FinancesDashboardPage() {
   const [data, setData] = useState<any>(null);
   const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
+  const [pinnedMemo, setPinnedMemo] = useState('');
   const [loading, setLoading] = useState(true);
   
   const getKstDate = () => {
@@ -61,6 +85,27 @@ export default function FinancesDashboardPage() {
       setQuickLinks([{ id: 'ql-default-1', title: '일품한우', url: 'https://www.ilpoomhanwoo.com/' }]);
     } catch {
       setQuickLinks([{ id: 'ql-default-1', title: '일품한우', url: 'https://www.ilpoomhanwoo.com/' }]);
+    }
+  };
+
+  const loadPinnedMemo = async () => {
+    try {
+      const local = localStorage.getItem('money_pinned_memo');
+      if (local !== null) {
+        setPinnedMemo(local);
+      }
+      const { data: pmData } = await supabase
+        .from('money_finances')
+        .select('memo')
+        .eq('target_date', PINNED_MEMO_STORAGE_DATE)
+        .maybeSingle();
+
+      if (pmData && typeof pmData.memo === 'string') {
+        setPinnedMemo(pmData.memo);
+        localStorage.setItem('money_pinned_memo', pmData.memo);
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -115,6 +160,7 @@ export default function FinancesDashboardPage() {
     if (!isAuthed) return;
     loadDashboard();
     loadQuickLinks();
+    loadPinnedMemo();
 
     // 실시간 구독
     const channel = supabase
@@ -128,6 +174,8 @@ export default function FinancesDashboardPage() {
             loadDashboard();
           } else if (changedDate === QUICK_LINKS_STORAGE_DATE) {
             loadQuickLinks();
+          } else if (changedDate === PINNED_MEMO_STORAGE_DATE) {
+            loadPinnedMemo();
           }
         }
       )
@@ -242,6 +290,23 @@ export default function FinancesDashboardPage() {
             );
           })()}
 
+          {/* 고정 전달사항 카드 (날짜와 무관하게 상시 표시) */}
+          {pinnedMemo.trim() && (
+            <div className="bg-orange-50/90 border border-orange-200 rounded-2xl p-5 sm:p-6 mb-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <h2 className="text-orange-900 text-base sm:text-lg font-extrabold tracking-wide flex items-center">
+                  <span className="mr-2">📌</span> 고정 전달사항
+                </h2>
+                <span className="text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200/80 px-2 py-0.5 rounded-full">
+                  상시 확인 · 미해결
+                </span>
+              </div>
+              <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-sm sm:text-base">
+                {renderTextWithLinks(pinnedMemo)}
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="text-center py-16">
               <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -249,32 +314,14 @@ export default function FinancesDashboardPage() {
             </div>
           ) : data ? (
             <div>
-              {/* 전달사항 메모 카드 */}
+              {/* 일일 전달사항 메모 카드 */}
               {data.memo && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 mb-6 shadow-sm">
-                  <h2 className="text-yellow-800 text-lg font-bold mb-3 tracking-wide flex items-center">
-                    <span className="mr-2">📝</span> 전달사항
+                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 sm:p-6 mb-6 shadow-sm">
+                  <h2 className="text-yellow-800 text-base sm:text-lg font-extrabold mb-3 tracking-wide flex items-center">
+                    <span className="mr-2">📝</span> 일일 전달사항
                   </h2>
                   <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-sm sm:text-base">
-                    {String(data.memo)
-                      .split(/(https?:\/\/[^\s]+|www\.[^\s]+)/gi)
-                      .map((part, idx) => {
-                        if (/^(https?:\/\/[^\s]+|www\.[^\s]+)$/i.test(part)) {
-                          const href = /^https?:\/\//i.test(part) ? part : `https://${part}`;
-                          return (
-                            <a
-                              key={idx}
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2 font-semibold break-all"
-                            >
-                              {part}
-                            </a>
-                          );
-                        }
-                        return <span key={idx}>{part}</span>;
-                      })}
+                    {renderTextWithLinks(data.memo)}
                   </div>
                 </div>
               )}

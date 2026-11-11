@@ -89,6 +89,7 @@ const TOTAL_SUMMARY_STORAGE_DATE = '1970-01-03';
 const BOOKMARK_STORAGE_DATE = '1970-01-04';
 const EVENT_STORAGE_DATE = '1970-01-05';
 const QUICK_LINKS_STORAGE_DATE = '1970-01-08';
+const PINNED_MEMO_STORAGE_DATE = '1970-01-09';
 
 const formatExternalUrl = (rawUrl: string) => {
   const trimmed = rawUrl.trim();
@@ -147,6 +148,8 @@ export default function FinancesAdminPage() {
   const [expenditures, setExpenditures] = useState([{ name: '', amount: '' }]);
   const [targetDate, setTargetDate] = useState(getKstDate());
   const [memo, setMemo] = useState('');
+  const [pinnedMemo, setPinnedMemo] = useState('');
+  const [pinnedMemoSaving, setPinnedMemoSaving] = useState(false);
   const [status, setStatus] = useState({ msg: '', type: '' });
   const [loading, setLoading] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
@@ -359,8 +362,61 @@ export default function FinancesAdminPage() {
     loadLedgerRecords();
     loadTotalSummary();
     loadQuickLinks();
+    loadPinnedMemo();
     loadUnpaidVendorCount();
   }, []);
+
+  const loadPinnedMemo = async () => {
+    try {
+      const local = localStorage.getItem('money_pinned_memo');
+      if (local !== null) {
+        setPinnedMemo(local);
+      }
+      const { data } = await supabase
+        .from('money_finances')
+        .select('memo')
+        .eq('target_date', PINNED_MEMO_STORAGE_DATE)
+        .maybeSingle();
+
+      if (data && typeof data.memo === 'string') {
+        setPinnedMemo(data.memo);
+        localStorage.setItem('money_pinned_memo', data.memo);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const savePinnedMemo = async (silent = false) => {
+    if (!silent) setPinnedMemoSaving(true);
+    localStorage.setItem('money_pinned_memo', pinnedMemo);
+    try {
+      const { error } = await supabase.from('money_finances').upsert(
+        {
+          target_date: PINNED_MEMO_STORAGE_DATE,
+          accounts: [],
+          expenditures: [],
+          total_account_balance: 0,
+          total_expenditure: 0,
+          final_balance: 0,
+          memo: pinnedMemo,
+        },
+        { onConflict: 'target_date' }
+      );
+      if (error) throw error;
+      if (!silent) {
+        setStatus({ msg: '✅ 고정 전달사항이 저장되었습니다!', type: 'success' });
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+      }
+    } catch (err: any) {
+      if (!silent) {
+        setStatus({ msg: `❌ 고정 전달사항 저장 실패: ${err.message}`, type: 'error' });
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+      }
+    } finally {
+      if (!silent) setPinnedMemoSaving(false);
+    }
+  };
 
   const saveQuickLinksToDb = async (nextList: QuickLinkItem[]) => {
     setQuickLinks(nextList);
@@ -641,6 +697,7 @@ export default function FinancesAdminPage() {
 
     try {
       await saveTotalSummary(true);
+      await savePinnedMemo(true);
       const { error } = await supabase.from('money_finances').upsert(payload, { onConflict: 'target_date' });
       if (error) throw error;
       setStatus({ msg: '✅ 성공적으로 저장되었습니다!', type: 'success' });
@@ -1841,16 +1898,82 @@ export default function FinancesAdminPage() {
               )}
             </div>
 
-            {/* 전달사항 메모 (최종 현잔고 위) */}
-            <div className="bg-yellow-50 rounded-2xl shadow-sm border border-yellow-200 p-4 sm:p-6">
-              <h2 className="text-yellow-800 text-base sm:text-lg font-bold mb-2.5 sm:mb-3 tracking-wide flex items-center whitespace-nowrap">
-                <span className="mr-2">📝</span> 전달사항
-              </h2>
+            {/* [고정 전달사항] 날짜가 바뀌어도 유지되는 미해결·상시 확인 메모 */}
+            <div className="bg-orange-50/90 rounded-2xl shadow-sm border border-orange-200 p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-orange-900 text-base sm:text-lg font-extrabold tracking-wide flex items-center whitespace-nowrap">
+                    <span className="mr-2">📌</span> 고정 전달사항
+                  </h2>
+                  <span className="text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200/80 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    날짜 무관 상시 고정 · 미해결 처리용
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => savePinnedMemo(false)}
+                  disabled={pinnedMemoSaving}
+                  className="text-xs font-bold bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-2xs"
+                >
+                  {pinnedMemoSaving ? '저장 중...' : '💾 고정 저장'}
+                </button>
+              </div>
+              <textarea
+                value={pinnedMemo}
+                onChange={(e) => setPinnedMemo(e.target.value)}
+                placeholder="아직 해결되지 않아 계속 챙겨야 하는 미해결 건이나 상시 고정 전달사항을 입력하세요. (날짜가 바뀌어도 그대로 유지됩니다)"
+                className="w-full p-3.5 sm:p-4 border border-orange-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-800 min-h-[90px] resize-y bg-white text-sm"
+              />
+              {(() => {
+                const urls = pinnedMemo.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/gi);
+                if (!urls || urls.length === 0) return null;
+                return (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-orange-900 shrink-0">바로가기:</span>
+                    {Array.from(new Set(urls)).map((rawUrl, i) => {
+                      const href = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+                      return (
+                        <a
+                          key={i}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-white border border-orange-300 px-2.5 py-1 rounded-lg underline underline-offset-2 break-all"
+                        >
+                          {rawUrl} ↗
+                        </a>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* [일일 전달사항] 날짜별로 바뀌는 당일 전달사항 메모 */}
+            <div className="bg-yellow-50 rounded-2xl shadow-sm border border-yellow-200 p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-yellow-800 text-base sm:text-lg font-extrabold tracking-wide flex items-center whitespace-nowrap">
+                    <span className="mr-2">📝</span> 일일 전달사항
+                  </h2>
+                  <span className="text-[11px] font-bold bg-yellow-100/90 text-yellow-800 border border-yellow-300/70 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    {targetDate} 당일 메모
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="text-xs font-bold bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-300 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-2xs"
+                >
+                  {loading ? '저장 중...' : '💾 저장'}
+                </button>
+              </div>
               <textarea 
                 value={memo} 
                 onChange={e => setMemo(e.target.value)} 
-                placeholder="오늘의 전달사항이나 공유할 내용을 입력하세요." 
-                className="w-full p-3.5 sm:p-4 border border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-gray-800 min-h-[100px] resize-y bg-white text-sm"
+                placeholder="해당 날짜(오늘)에만 해당하는 일일 전달사항이나 공유할 내용을 입력하세요." 
+                className="w-full p-3.5 sm:p-4 border border-yellow-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-gray-800 min-h-[90px] resize-y bg-white text-sm"
               />
               {(() => {
                 const urls = memo.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/gi);
