@@ -384,6 +384,456 @@ export default function UnpaidManagerSection({ onVendorCountChange }: UnpaidMana
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const escapeHtml = (str: string) =>
+    String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const openPrintDocument = (
+    items: { vendor: UnpaidVendor; stats: ReturnType<typeof calculateVendorStats> }[],
+    title: string
+  ) => {
+    if (items.length === 0) {
+      alert('인쇄할 업체 내역이 없습니다.');
+      return;
+    }
+
+    const printWin = window.open('', '_blank', 'width=960,height=860');
+    if (!printWin) {
+      alert('팝업 차단이 설정되어 있습니다. 브라우저 주소창 우측에서 팝업을 허용해주세요.');
+      return;
+    }
+
+    const todayStr = getKstDate();
+    const totalChargedSum = items.reduce((acc, it) => acc + it.stats.totalCharged, 0);
+    const totalPaidSum = items.reduce((acc, it) => acc + it.stats.totalPaid, 0);
+    const totalRemainingSum = items.reduce((acc, it) => acc + it.stats.remaining, 0);
+
+    const vendorSectionsHtml = items
+      .map(({ vendor, stats }, vIdx) => {
+        // 날짜 오름차순(과거 -> 최신) 정렬 후 누적 잔액 계산
+        const chronologicalTxs = [...(vendor.transactions || [])].sort((a, b) => {
+          const cmp = a.date.localeCompare(b.date);
+          if (cmp !== 0) return cmp;
+          return (a.createdAt || '').localeCompare(b.createdAt || '');
+        });
+
+        let runningBalance = 0;
+        const rowsHtml =
+          chronologicalTxs.length === 0
+            ? `<tr><td colspan="7" class="empty-cell">등록된 상세 내역이 없습니다.</td></tr>`
+            : chronologicalTxs
+                .map((tx, idx) => {
+                  if (tx.type === 'charge') {
+                    runningBalance += tx.amount;
+                  } else {
+                    runningBalance -= tx.amount;
+                  }
+                  const displayRunning = Math.max(0, runningBalance);
+                  return `
+                    <tr>
+                      <td class="text-center">${idx + 1}</td>
+                      <td class="text-center num">${escapeHtml(tx.date)}</td>
+                      <td class="text-center">
+                        <span class="badge ${tx.type === 'payment' ? 'badge-pay' : 'badge-charge'}">
+                          ${tx.type === 'payment' ? '납부(차감)' : '미납발생'}
+                        </span>
+                      </td>
+                      <td>${escapeHtml(tx.memo || '-')}</td>
+                      <td class="text-right num charge-col">
+                        ${tx.type === 'charge' ? `+${formatNumber(tx.amount)}원` : '-'}
+                      </td>
+                      <td class="text-right num pay-col">
+                        ${tx.type === 'payment' ? `-${formatNumber(tx.amount)}원` : '-'}
+                      </td>
+                      <td class="text-right num bal-col">${formatNumber(displayRunning)}원</td>
+                    </tr>
+                  `;
+                })
+                .join('');
+
+        return `
+          <div class="vendor-block ${vIdx > 0 ? 'vendor-spacing' : ''}">
+            <div class="vendor-header">
+              <div>
+                <span class="cat-tag">[${escapeHtml(vendor.category)}]</span>
+                <span class="vendor-title">${escapeHtml(vendor.name)}</span>
+                <span class="status-tag ${stats.remaining <= 0 ? 'status-done' : 'status-unpaid'}">
+                  ${stats.remaining <= 0 ? '완납 완료' : '미납 잔금 있음'}
+                </span>
+              </div>
+              <div class="vendor-rate">상환율 ${stats.paidRate}%</div>
+            </div>
+
+            <table class="summary-table">
+              <thead>
+                <tr>
+                  <th>총 미납 발생액 (+)</th>
+                  <th>누적 납부 완료액 (-)</th>
+                  <th>현재 남은 미납 잔금 (=)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="num">${formatNumber(stats.totalCharged)}원</td>
+                  <td class="num pay-col">${formatNumber(stats.totalPaid)}원</td>
+                  <td class="num bal-col">${formatNumber(stats.remaining)}원</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table class="tx-table">
+              <thead>
+                <tr>
+                  <th style="width: 44px;">순번</th>
+                  <th style="width: 96px;">일자</th>
+                  <th style="width: 86px;">구분</th>
+                  <th>적요 (내역 메모)</th>
+                  <th style="width: 115px;">미납 발생 (+)</th>
+                  <th style="width: 115px;">납부 차감 (-)</th>
+                  <th style="width: 120px;">남은 잔금</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4" class="text-right font-bold">합계 및 최종 잔금</td>
+                  <td class="text-right num font-bold">+${formatNumber(stats.totalCharged)}원</td>
+                  <td class="text-right num font-bold pay-col">-${formatNumber(stats.totalPaid)}원</td>
+                  <td class="text-right num font-bold bal-col">${formatNumber(stats.remaining)}원</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        `;
+      })
+      .join('');
+
+    const multiSummaryHtml =
+      items.length > 1
+        ? `
+          <div class="overall-box">
+            <div class="overall-title">전체 대상 업체 합계 요약 (총 ${items.length}곳)</div>
+            <table class="summary-table">
+              <thead>
+                <tr>
+                  <th>총 미납 발생 합계</th>
+                  <th>총 누적 납부 합계</th>
+                  <th>현재 남은 총 미납 잔금</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="num">${formatNumber(totalChargedSum)}원</td>
+                  <td class="num pay-col">${formatNumber(totalPaidSum)}원</td>
+                  <td class="num bal-col">${formatNumber(totalRemainingSum)}원</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `
+        : '';
+
+    const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Pretendard", "Malgun Gothic", "맑은 고딕", -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #111827;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 24px 16px 48px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .toolbar {
+      max-width: 820px;
+      margin: 0 auto 16px;
+      background: #111827;
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .toolbar-info {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .toolbar-btns {
+      display: flex;
+      gap: 8px;
+    }
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-print {
+      background: #3b82f6;
+      color: #ffffff;
+    }
+    .btn-print:hover { background: #2563eb; }
+    .btn-close {
+      background: #374151;
+      color: #e5e7eb;
+    }
+    .btn-close:hover { background: #4b5563; }
+    .sheet {
+      max-width: 820px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 32px 36px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .doc-header {
+      border-bottom: 2px solid #111827;
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .doc-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+    .doc-meta {
+      font-size: 12px;
+      color: #4b5563;
+      text-align: right;
+      line-height: 1.5;
+    }
+    .overall-box {
+      margin-bottom: 24px;
+      padding: 14px 16px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+    }
+    .overall-title {
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #1e293b;
+    }
+    .vendor-block {
+      page-break-inside: avoid;
+    }
+    .vendor-spacing {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 2px dashed #cbd5e1;
+    }
+    .vendor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .cat-tag {
+      font-size: 13px;
+      font-weight: 700;
+      color: #4b5563;
+      margin-right: 6px;
+    }
+    .vendor-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #111827;
+      margin-right: 8px;
+    }
+    .status-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+    }
+    .status-unpaid {
+      background: #fff1f2;
+      color: #be123c;
+      border-color: #fecdd3;
+    }
+    .status-done {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #a7f3d0;
+    }
+    .vendor-rate {
+      font-size: 12px;
+      font-weight: 700;
+      color: #374151;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .summary-table {
+      margin-bottom: 12px;
+    }
+    .summary-table th, .summary-table td {
+      border: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      text-align: center;
+      width: 33.33%;
+    }
+    .summary-table th {
+      background: #f1f5f9;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+    }
+    .summary-table td {
+      font-size: 15px;
+      font-weight: 800;
+      background: #ffffff;
+    }
+    .tx-table th, .tx-table td {
+      border: 1px solid #d1d5db;
+      padding: 7px 10px;
+      font-size: 12.5px;
+    }
+    .tx-table thead th {
+      background: #f3f4f6;
+      font-weight: 700;
+      color: #1f2937;
+      text-align: center;
+    }
+    .tx-table tfoot td {
+      background: #f9fafb;
+      border-top: 2px solid #9ca3af;
+    }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .font-bold { font-weight: 800; }
+    .num { font-variant-numeric: tabular-nums; }
+    .charge-col { color: #b91c1c; }
+    .pay-col { color: #047857; }
+    .bal-col { color: #be123c; font-weight: 800; }
+    .badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-charge {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+    .badge-pay {
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .empty-cell {
+      text-align: center;
+      color: #6b7280;
+      padding: 16px;
+    }
+    .sign-row {
+      margin-top: 28px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 24px;
+      font-size: 12px;
+      color: #4b5563;
+    }
+    .sign-box {
+      border-bottom: 1px solid #9ca3af;
+      width: 140px;
+      padding-bottom: 4px;
+      text-align: left;
+    }
+    @media print {
+      @page { size: A4 portrait; margin: 12mm; }
+      body { background: #ffffff; padding: 0; }
+      .toolbar { display: none !important; }
+      .sheet {
+        max-width: 100%;
+        padding: 0;
+        box-shadow: none;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="toolbar-info">🖨️ 인쇄 미리보기 화면입니다. 우측 버튼을 눌러 종이로 인쇄하거나 PDF로 저장하세요.</div>
+    <div class="toolbar-btns">
+      <button class="btn btn-print" onclick="window.print()">🖨️ 지금 인쇄하기</button>
+      <button class="btn btn-close" onclick="window.close()">✕ 닫기</button>
+    </div>
+  </div>
+
+  <div class="sheet">
+    <div class="doc-header">
+      <h1 class="doc-title">${escapeHtml(title)}</h1>
+      <div class="doc-meta">
+        <div>출력일자: <strong>${todayStr}</strong></div>
+        <div>머니장부 미납·외상 정산 관리</div>
+      </div>
+    </div>
+
+    ${multiSummaryHtml}
+    ${vendorSectionsHtml}
+
+    <div class="sign-row">
+      <div class="sign-box">확인일자: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;년 &nbsp;&nbsp;&nbsp;월 &nbsp;&nbsp;&nbsp;일</div>
+      <div class="sign-box">담당자 확인: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(인)</div>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        window.print();
+      }, 250);
+    });
+  </script>
+</body>
+</html>`;
+
+    printWin.document.open();
+    printWin.document.write(html);
+    printWin.document.close();
+  };
+
+  const handlePrintSingleVendor = (
+    vendor: UnpaidVendor,
+    stats: ReturnType<typeof calculateVendorStats>
+  ) => {
+    openPrintDocument([{ vendor, stats }], `${vendor.name} - 미납금 · 납부 정산 내역서`);
+  };
+
+  const handlePrintAllVendors = () => {
+    const label =
+      categoryFilter !== 'all'
+        ? `[${categoryFilter}] 미납금 · 납부 정산 내역서`
+        : '전체 업체 미납금 · 납부 정산 내역서';
+    openPrintDocument(filteredVendors, label);
+  };
+
   return (
     <div className="space-y-5">
       {/* 1. 상단 전체 미납 총액 · 납부된 금액 · 남은 총 잔금 대시보드 */}
@@ -733,10 +1183,19 @@ export default function UnpaidManagerSection({ onVendorCountChange }: UnpaidMana
 
       {/* 4. 업체 · 세금별 미납 잔금 카드 리스트 */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center justify-between gap-2 flex-wrap px-1">
           <span className="text-xs sm:text-sm font-semibold text-gray-700">
             업체를 누르면 날짜별 미납·납부 내역이 펼쳐집니다 ({filteredVendors.length}곳)
           </span>
+          {filteredVendors.length > 0 && (
+            <button
+              type="button"
+              onClick={handlePrintAllVendors}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-800 bg-white hover:bg-gray-100 border border-gray-300 px-3 py-1.5 rounded-xl shadow-2xs transition-colors whitespace-nowrap"
+            >
+              <span>🖨️ 전체 내역 인쇄</span>
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -867,7 +1326,7 @@ export default function UnpaidManagerSection({ onVendorCountChange }: UnpaidMana
                         />
                       </div>
 
-                      <div className="flex items-center justify-end gap-1.5 pt-0.5">
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap pt-0.5">
                         {!isCompleted && (
                           <button
                             type="button"
@@ -877,6 +1336,13 @@ export default function UnpaidManagerSection({ onVendorCountChange }: UnpaidMana
                             + 납부 기록하기
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => handlePrintSingleVendor(vendor, stats)}
+                          className="text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          🖨️ 인쇄
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleStartEditVendor(vendor)}
