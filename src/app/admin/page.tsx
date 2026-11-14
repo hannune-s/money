@@ -228,6 +228,7 @@ export default function FinancesAdminPage() {
   const [lgRememberRule, setLgRememberRule] = useState(true);
   const [lgSearch, setLgSearch] = useState('');
   const [lgFilterScope, setLgFilterScope] = useState<'all' | LedgerScope>('all');
+  const [lgFilterDate, setLgFilterDate] = useState('');
   const [lgCurrentPage, setLgCurrentPage] = useState(1);
   const [lgLoading, setLgLoading] = useState(false);
   const [editingLgId, setEditingLgId] = useState<string | null>(null);
@@ -1475,8 +1476,13 @@ export default function FinancesAdminPage() {
     return autoClassifyLedgerCategory(item.description, item.scope, ledgerCustomRules);
   };
 
+  const availableLedgerDates = Array.from(
+    new Set(ledgerList.map((item) => item.date).filter(Boolean))
+  ).sort((a, b) => b.localeCompare(a));
+
   const filteredLedgerList = ledgerList.filter((item) => {
     if (lgFilterScope !== 'all' && item.scope !== lgFilterScope) return false;
+    if (lgFilterDate && item.date !== lgFilterDate) return false;
     if (!lgSearch.trim()) return true;
     const q = lgSearch.trim().toLowerCase();
     const cat = resolveEntryCategory(item).toLowerCase();
@@ -3640,7 +3646,73 @@ export default function FinancesAdminPage() {
                 </div>
               </div>
 
-              <div className="mb-3">
+              {/* 날짜별 조회 달력 & 검색창 */}
+              <div className="mb-3 space-y-2">
+                <div className="flex flex-wrap justify-between items-center gap-2 bg-gray-50/80 p-3 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-gray-700 text-xs sm:text-sm whitespace-nowrap shrink-0">
+                      📅 조회 날짜 선택
+                    </span>
+                    <input
+                      type="date"
+                      value={lgFilterDate}
+                      onChange={(e) => {
+                        setLgFilterDate(e.target.value);
+                        setLgCurrentPage(1);
+                      }}
+                      className="p-2 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-xs sm:text-sm outline-none cursor-pointer"
+                    />
+                    {lgFilterDate ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLgFilterDate('');
+                          setLgCurrentPage(1);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors whitespace-nowrap"
+                      >
+                        전체 날짜 보기 ✕
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-400 font-medium">
+                        (전체 날짜 표시 중 · 달력에서 날짜를 고르면 해당일만 조회)
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 현재 필터링된 내역의 지출/수입 합계 요약 */}
+                  {(() => {
+                    const filteredExpenseSum = filteredLedgerList
+                      .filter((it) => it.scope === 'store' || it.scope === 'home')
+                      .reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+                    const filteredIncomeSum = filteredLedgerList
+                      .filter((it) => it.scope === 'income' || it.scope === 'side_income')
+                      .reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+
+                    return (
+                      <div className="flex items-center gap-2 text-xs tabular-nums ml-auto shrink-0 bg-white px-2.5 py-1.5 rounded-lg border border-gray-200">
+                        <span className="text-gray-600 whitespace-nowrap">
+                          {lgFilterDate ? `${lgFilterDate} 지출:` : '조회 지출:'}{' '}
+                          <strong className="font-bold text-rose-600">
+                            {formatNumber(filteredExpenseSum)}원
+                          </strong>
+                        </span>
+                        {filteredIncomeSum > 0 && (
+                          <>
+                            <span className="text-gray-300">|</span>
+                            <span className="text-gray-600 whitespace-nowrap">
+                              수입:{' '}
+                              <strong className="font-bold text-emerald-600">
+                                +{formatNumber(filteredIncomeSum)}원
+                              </strong>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
                 <input
                   type="text"
                   value={lgSearch}
@@ -3668,86 +3740,140 @@ export default function FinancesAdminPage() {
                           const resolvedCat = resolveEntryCategory(item);
                           const catMeta = getLedgerCategoryMeta(resolvedCat);
                           const rowNumber = startIndex + idx + 1;
+                          const isNewDateGroup =
+                            idx === 0 || pagedItems[idx - 1].date !== item.date;
+                          const dayItems = filteredLedgerList.filter(
+                            (it) => it.date === item.date
+                          );
+                          const dayExpenseSum = dayItems
+                            .filter((it) => it.scope === 'store' || it.scope === 'home')
+                            .reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+                          const dayIncomeSum = dayItems
+                            .filter((it) => it.scope === 'income' || it.scope === 'side_income')
+                            .reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+
                           return (
-                            <div
-                              key={item.id}
-                              className="px-2 sm:px-4 py-2.5 flex items-center justify-between gap-1 sm:gap-2 hover:bg-gray-50/80 transition-colors"
-                            >
-                              <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
-                                <span className="text-[11px] sm:text-xs text-gray-400 min-w-[1rem] sm:min-w-[1.25rem] text-center shrink-0 tabular-nums">
-                                  {rowNumber}
-                                </span>
-                                <span className="text-[11px] sm:text-xs text-gray-500 shrink-0 tabular-nums whitespace-nowrap">
-                                  <span className="sm:hidden">{item.date.slice(5)}</span>
-                                  <span className="hidden sm:inline">{item.date}</span>
-                                </span>
-                                <span
-                                  className={`text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded shrink-0 whitespace-nowrap ${
-                                    item.scope === 'store'
-                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                      : item.scope === 'home'
-                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                      : item.scope === 'side_income'
-                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  }`}
-                                >
-                                  {item.scope === 'store'
-                                    ? '매장'
-                                    : item.scope === 'home'
-                                    ? '집'
-                                    : item.scope === 'side_income'
-                                    ? '부수입'
-                                    : '매장수입'}
-                                </span>
-                                {item.scope !== 'income' && item.scope !== 'side_income' && (
+                            <div key={item.id}>
+                              {isNewDateGroup && (
+                                <div className="bg-slate-50/90 px-3 sm:px-4 py-1.5 flex items-center justify-between gap-2 border-b border-gray-100 text-[11px] sm:text-xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setLgFilterDate(
+                                        lgFilterDate === item.date ? '' : item.date
+                                      );
+                                      setLgCurrentPage(1);
+                                    }}
+                                    className="font-bold text-slate-700 hover:text-indigo-600 flex items-center gap-1.5 transition-colors"
+                                    title="클릭하면 이 날짜 내역만 모아봅니다"
+                                  >
+                                    <span>📅 {item.date}</span>
+                                    <span className="text-[10px] font-medium text-slate-400">
+                                      ({dayItems.length}건 · {lgFilterDate === item.date ? '전체보기' : '이 날짜만 보기'})
+                                    </span>
+                                  </button>
+                                  <div className="flex items-center gap-2 tabular-nums text-[11px]">
+                                    {dayExpenseSum > 0 && (
+                                      <span className="text-gray-500">
+                                        지출 <strong className="font-bold text-gray-800">{formatNumber(dayExpenseSum)}원</strong>
+                                      </span>
+                                    )}
+                                    {dayIncomeSum > 0 && (
+                                      <span className="text-emerald-700">
+                                        수입 <strong className="font-bold">+{formatNumber(dayIncomeSum)}원</strong>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="px-2 sm:px-4 py-2.5 flex items-center justify-between gap-1 sm:gap-2 hover:bg-gray-50/80 transition-colors">
+                                <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+                                  <span className="text-[11px] sm:text-xs text-gray-400 min-w-[1rem] sm:min-w-[1.25rem] text-center shrink-0 tabular-nums">
+                                    {rowNumber}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setLgFilterDate(
+                                        lgFilterDate === item.date ? '' : item.date
+                                      );
+                                      setLgCurrentPage(1);
+                                    }}
+                                    className="text-[11px] sm:text-xs text-gray-500 hover:text-indigo-600 hover:underline shrink-0 tabular-nums whitespace-nowrap"
+                                    title="이 날짜만 모아보기"
+                                  >
+                                    <span className="sm:hidden">{item.date.slice(5)}</span>
+                                    <span className="hidden sm:inline">{item.date}</span>
+                                  </button>
                                   <span
-                                    className={`text-[10px] sm:text-[11px] font-medium px-1 sm:px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
-                                      item.costType === 'fixed'
-                                        ? 'bg-indigo-50 text-indigo-700'
-                                        : 'bg-teal-50 text-teal-700'
+                                    className={`text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded shrink-0 whitespace-nowrap ${
+                                      item.scope === 'store'
+                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                        : item.scope === 'home'
+                                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                        : item.scope === 'side_income'
+                                        ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                     }`}
                                   >
-                                    {item.costType === 'fixed' ? '고정' : '변동'}
+                                    {item.scope === 'store'
+                                      ? '매장'
+                                      : item.scope === 'home'
+                                      ? '집'
+                                      : item.scope === 'side_income'
+                                      ? '부수입'
+                                      : '매장수입'}
                                   </span>
-                                )}
-                                <span
-                                  className={`hidden sm:inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md border shrink-0 whitespace-nowrap ${catMeta.badgeClass}`}
-                                >
-                                  <span className={`w-1.5 h-1.5 rounded-full ${catMeta.barClass}`} />
-                                  {catMeta.name}
-                                </span>
-                                <span className="text-xs sm:text-sm font-normal text-gray-800 truncate min-w-0">
-                                  {item.description}
-                                </span>
-                              </div>
+                                  {item.scope !== 'income' && item.scope !== 'side_income' && (
+                                    <span
+                                      className={`text-[10px] sm:text-[11px] font-medium px-1 sm:px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
+                                        item.costType === 'fixed'
+                                          ? 'bg-indigo-50 text-indigo-700'
+                                          : 'bg-teal-50 text-teal-700'
+                                      }`}
+                                    >
+                                      {item.costType === 'fixed' ? '고정' : '변동'}
+                                    </span>
+                                  )}
+                                  <span
+                                    className={`hidden sm:inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md border shrink-0 whitespace-nowrap ${catMeta.badgeClass}`}
+                                  >
+                                    <span className={`w-1.5 h-1.5 rounded-full ${catMeta.barClass}`} />
+                                    {catMeta.name}
+                                  </span>
+                                  <span className="text-xs sm:text-sm font-normal text-gray-800 truncate min-w-0">
+                                    {item.description}
+                                  </span>
+                                </div>
 
-                              <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
-                                <span
-                                  className={`text-xs sm:text-[15px] font-medium tabular-nums whitespace-nowrap ${
-                                    item.scope === 'income' || item.scope === 'side_income'
-                                      ? 'text-emerald-600'
-                                      : 'text-gray-800'
-                                  }`}
-                                >
-                                  {item.scope === 'income' || item.scope === 'side_income' ? '+' : ''}
-                                  {formatNumber(item.amount)}원
-                                </span>
-                                <div className="flex items-center gap-1 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEditLedger(item)}
-                                    className="text-[11px] sm:text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg whitespace-nowrap"
+                                <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+                                  <span
+                                    className={`text-xs sm:text-[15px] font-medium tabular-nums whitespace-nowrap ${
+                                      item.scope === 'income' || item.scope === 'side_income'
+                                        ? 'text-emerald-600'
+                                        : 'text-gray-800'
+                                    }`}
                                   >
-                                    수정
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteLedger(item.id)}
-                                    className="text-[11px] sm:text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg whitespace-nowrap"
-                                  >
-                                    삭제
-                                  </button>
+                                    {item.scope === 'income' || item.scope === 'side_income' ? '+' : ''}
+                                    {formatNumber(item.amount)}원
+                                  </span>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEditLedger(item)}
+                                      className="text-[11px] sm:text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg whitespace-nowrap"
+                                    >
+                                      수정
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteLedger(item.id)}
+                                      className="text-[11px] sm:text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg whitespace-nowrap"
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
