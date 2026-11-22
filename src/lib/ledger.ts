@@ -1,4 +1,5 @@
 export const LEDGER_STORAGE_DATE = '1970-01-06';
+export const HQ_LEDGER_STORAGE_DATE = '1970-01-10';
 
 export type LedgerScope = 'store' | 'home' | 'income' | 'side_income';
 export type LedgerCostType = 'fixed' | 'variable';

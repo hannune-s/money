@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   LEDGER_STORAGE_DATE,
+  HQ_LEDGER_STORAGE_DATE,
   LedgerEntry,
   LedgerScope,
   LedgerCostType,
@@ -13,6 +14,7 @@ import {
 } from '@/lib/ledger';
 import { UNPAID_STORAGE_DATE } from '@/lib/unpaid';
 import UnpaidManagerSection from '@/components/UnpaidManagerSection';
+import HqLedgerSection from '@/components/HqLedgerSection';
 
 interface AlbaRecord {
   id: string;
@@ -129,10 +131,11 @@ export default function FinancesAdminPage() {
   const [checkingLoginPin, setCheckingLoginPin] = useState(false);
 
   // 네비게이션 및 메뉴 상태
-  type AdminMenuType = 'finance' | 'alba' | 'bookmark' | 'event' | 'ledger' | 'unpaid' | 'password';
+  type AdminMenuType = 'finance' | 'alba' | 'bookmark' | 'event' | 'ledger' | 'hq_ledger' | 'unpaid' | 'password';
   const [activeMenu, setActiveMenu] = useState<AdminMenuType>('finance');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [unpaidVendorCount, setUnpaidVendorCount] = useState(0);
+  const [hqLedgerCount, setHqLedgerCount] = useState(0);
 
   const selectMenu = (menu: AdminMenuType) => {
     setActiveMenu(menu);
@@ -298,6 +301,7 @@ export default function FinancesAdminPage() {
       const menuParam = params.get('menu');
       if (
         menuParam === 'ledger' ||
+        menuParam === 'hq_ledger' ||
         menuParam === 'unpaid' ||
         menuParam === 'event' ||
         menuParam === 'bookmark' ||
@@ -326,11 +330,39 @@ export default function FinancesAdminPage() {
     try {
       const { data } = await supabase
         .from('money_finances')
-        .select('accounts')
+        .select('memo, accounts')
         .eq('target_date', UNPAID_STORAGE_DATE)
         .maybeSingle();
-      if (data && Array.isArray(data.accounts)) {
+      if (data?.memo) {
+        const parsed = JSON.parse(data.memo);
+        if (Array.isArray(parsed)) setUnpaidVendorCount(parsed.length);
+      } else if (data && Array.isArray(data.accounts)) {
         setUnpaidVendorCount(data.accounts.length);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const loadHqLedgerCount = async () => {
+    try {
+      const localHq = localStorage.getItem('money_hq_ledger_entries');
+      if (localHq) {
+        const parsed = JSON.parse(localHq);
+        if (Array.isArray(parsed)) setHqLedgerCount(parsed.length);
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      const { data } = await supabase
+        .from('money_finances')
+        .select('memo')
+        .eq('target_date', HQ_LEDGER_STORAGE_DATE)
+        .maybeSingle();
+      if (data?.memo) {
+        const parsed = JSON.parse(data.memo);
+        if (Array.isArray(parsed)) setHqLedgerCount(parsed.length);
       }
     } catch {
       // ignore
@@ -365,6 +397,7 @@ export default function FinancesAdminPage() {
     loadQuickLinks();
     loadPinnedMemo();
     loadUnpaidVendorCount();
+    loadHqLedgerCount();
   }, []);
 
   const loadPinnedMemo = async () => {
@@ -1531,7 +1564,11 @@ export default function FinancesAdminPage() {
     <div className="min-h-screen bg-gray-50">
       {/* 상단 고정 네비게이션 바 (햄버거 메뉴 + 탭 전환) */}
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex justify-between items-center gap-2">
+        <div
+          className={`${
+            activeMenu === 'hq_ledger' ? 'max-w-[1480px]' : 'max-w-4xl'
+          } mx-auto px-3 sm:px-4 h-14 sm:h-16 flex justify-between items-center gap-2`}
+        >
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={() => setIsDrawerOpen(true)}
@@ -1553,6 +1590,8 @@ export default function FinancesAdminPage() {
                 ? '경조사 관리'
                 : activeMenu === 'ledger'
                 ? '지출장부 입력 (매장·집)'
+                : activeMenu === 'hq_ledger'
+                ? '본점지출관리'
                 : activeMenu === 'unpaid'
                 ? '미납금 · 외상 잔금 관리'
                 : '비밀번호 설정'}
@@ -1645,6 +1684,20 @@ export default function FinancesAdminPage() {
           </button>
 
           <button
+            onClick={() => selectMenu('hq_ledger')}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+              activeMenu === 'hq_ledger'
+                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <span>본점지출관리</span>
+            <span className="text-xs font-extrabold shrink-0">
+              {hqLedgerCount}
+            </span>
+          </button>
+
+          <button
             onClick={() => selectMenu('unpaid')}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
               activeMenu === 'unpaid'
@@ -1731,7 +1784,11 @@ export default function FinancesAdminPage() {
       </aside>
 
       {/* 본문 영역 */}
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-16">
+      <div
+        className={`${
+          activeMenu === 'hq_ledger' ? 'max-w-[1480px]' : 'max-w-4xl'
+        } mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-16`}
+      >
         {activeMenu === 'finance' ? (
           /* ==================== [메뉴 1] 일일 자금 현황 ==================== */
           <div className="space-y-5 sm:space-y-6">
@@ -3962,6 +4019,9 @@ export default function FinancesAdminPage() {
               )}
             </div>
           </div>
+        ) : activeMenu === 'hq_ledger' ? (
+          /* ==================== [메뉴 2-4-2] 본점지출관리 (좌측 입력 · 우측 장부 보기 50:50 통합) ==================== */
+          <HqLedgerSection onEntryCountChange={setHqLedgerCount} />
         ) : activeMenu === 'unpaid' ? (
           /* ==================== [메뉴 2-5] 미납금 · 외상 잔금 관리 ==================== */
           <UnpaidManagerSection onVendorCountChange={setUnpaidVendorCount} />
