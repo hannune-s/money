@@ -1634,7 +1634,7 @@ export default function FinancesAdminPage() {
                 : activeMenu === 'unpaid'
                 ? '미납금 · 외상 잔금 관리'
                 : activeMenu === 'diary'
-                ? '일일 기록장'
+                ? '나의 기록들'
                 : '비밀번호 설정'}
             </span>
           </div>
@@ -1760,7 +1760,7 @@ export default function FinancesAdminPage() {
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <span>일일 기록장</span>
+            <span>나의 기록들</span>
             <span className="text-xs font-extrabold shrink-0">
               {diaryEntryCount}
             </span>

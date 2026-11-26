@@ -93,13 +93,15 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
   const [diaryImportant, setDiaryImportant] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // 검색 및 필터 상태
+  // 검색, 필터, 펼침 및 페이지네이션 상태
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [filterDate, setFilterDate] = useState<string>('');
   const [filterTag, setFilterTag] = useState<'all' | DiaryMoodTag>('all');
   const [onlyImportant, setOnlyImportant] = useState(false);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     try {
@@ -298,6 +300,13 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
     await saveEntriesToDb(updated);
   };
 
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
   // 월 목록 추출
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
@@ -339,20 +348,6 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
         : (a.createdAt || '').localeCompare(b.createdAt || '');
     });
   }, [entries, selectedMonth, filterDate, filterTag, onlyImportant, searchQuery, sortOrder]);
-
-  // 날짜별로 묶기
-  const groupedByDate = useMemo(() => {
-    const groups: { date: string; items: DiaryEntry[] }[] = [];
-    filteredEntries.forEach((item) => {
-      const last = groups[groups.length - 1];
-      if (last && last.date === item.date) {
-        last.items.push(item);
-      } else {
-        groups.push({ date: item.date, items: [item] });
-      }
-    });
-    return groups;
-  }, [filteredEntries]);
 
   // 검색어 하이라이트
   const renderHighlightedText = (text: string) => {
@@ -600,7 +595,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
   <div class="doc-container">
     <div class="doc-header">
       <div>
-        <div class="doc-kicker">DAILY ARCHIVE &amp; NOTE</div>
+        <div class="doc-kicker">MY RECORDS &amp; ARCHIVE</div>
         <h1 class="doc-title">${escapeHtml(printTitle)}</h1>
         <p class="doc-subtitle">${escapeHtml(subtitle)}</p>
       </div>
@@ -611,7 +606,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
     </div>
     ${dateSectionsHtml}
     <div class="doc-footer">
-      <span>소소한 기록 · 종이 보관용 일기장</span>
+      <span>나의 기록들 · 종이 보관용 문서</span>
       <span>${nowStr}</span>
     </div>
   </div>
@@ -633,18 +628,10 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
     win.document.close();
   };
 
-  const handlePrintDateGroup = (date: string, items: DiaryEntry[]) => {
-    openPrintWindow(
-      items,
-      `일일 기록장 (${formatDotDate(date)})`,
-      getKoreanDateLabel(date)
-    );
-  };
-
   const handlePrintSingleEntry = (item: DiaryEntry) => {
     openPrintWindow(
       [item],
-      `일일 기록장 (${formatDotDate(item.date)})`,
+      `나의 기록들 (${formatDotDate(item.date)})`,
       `[${item.tag}] ${item.title}`
     );
   };
@@ -660,9 +647,35 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
     const sub =
       descParts.length > 0
         ? `조회 조건 : ${descParts.join(' · ')}`
-        : '날짜별 일일 기록 전체 보관본';
+        : '날짜별 나의 기록들 전체 보관본';
 
-    openPrintWindow(filteredEntries, '일일 기록장', sub);
+    openPrintWindow(filteredEntries, '나의 기록들', sub);
+  };
+
+  // 페이지네이션 계산 (한 페이지에 12줄씩 심플 목차 표시)
+  const ITEMS_PER_PAGE = 12;
+  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+  const pagedEntries = filteredEntries.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const allPagedExpanded =
+    pagedEntries.length > 0 && pagedEntries.every((it) => !!expandedIds[it.id]);
+
+  const toggleAllPaged = () => {
+    if (allPagedExpanded) {
+      const next = { ...expandedIds };
+      pagedEntries.forEach((it) => {
+        delete next[it.id];
+      });
+      setExpandedIds(next);
+    } else {
+      const next = { ...expandedIds };
+      pagedEntries.forEach((it) => {
+        next[it.id] = true;
+      });
+      setExpandedIds(next);
+    }
   };
 
   return (
@@ -670,7 +683,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
       className="space-y-7 text-[#352E28] selection:bg-[#DFD3C3]"
       style={{ fontFamily: currentFontFamily }}
     >
-      {/* 얇고 감성적인 펜글씨(카페24 고운밤, 교보손글씨, 마루부리 가는체, 고운바탕) 웹폰트 로드 */}
+      {/* 얇고 감성적인 펜글씨 웹폰트 로드 */}
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700&display=swap');
         @font-face {
@@ -732,13 +745,13 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                 className="text-[24px] sm:text-[31px] font-light text-[#1E1915] tracking-[0.16em] leading-snug"
                 style={{ fontFamily: "'Gowun Batang', 'Nanum Myeongjo', serif" }}
               >
-                일일 기록장
+                나의 기록들
               </h1>
               <p
                 className="text-[10.5px] sm:text-[11.5px] text-[#7A6F63] tracking-[0.32em] mt-1 uppercase font-light"
                 style={{ fontFamily: "'Gowun Batang', 'Nanum Myeongjo', serif" }}
               >
-                — D A I L Y &nbsp; N O T E
+                — M Y &nbsp; R E C O R D S
               </p>
             </div>
 
@@ -796,7 +809,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
             </div>
           </div>
 
-          {/* 기록 작성 폼 (얇고 잔잔한 펜글씨 크기 적용) */}
+          {/* 기록 작성 폼 */}
           <form onSubmit={handleSubmit} className="mt-5 space-y-3.5">
             {/* 날짜 & 태그 스티커 & 중요 체크 */}
             <div className="flex flex-wrap items-center justify-between gap-2.5">
@@ -840,18 +853,18 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
               </button>
             </div>
 
-            {/* 제목 입력 (선택 — 작고 여리여리한 펜글씨 크기) */}
+            {/* 제목 입력 */}
             <div>
               <input
                 type="text"
                 value={diaryTitle}
                 onChange={(e) => setDiaryTitle(e.target.value)}
-                placeholder="짧은 제목 (비워두시면 본문만 일기처럼 기록됩니다)"
+                placeholder="목록에 표시될 짧은 제목 (비워두시면 본문 첫 줄이 제목이 됩니다)"
                 className="w-full px-4 py-2.5 bg-[#FDFBF7] border border-[#D4C5B0] rounded-xl text-[13px] sm:text-[13.5px] font-normal text-[#352E28] placeholder:text-[#A6998A] tracking-[0.04em] focus:border-[#8C7D6B] outline-none shadow-2xs"
               />
             </div>
 
-            {/* 본문 입력 (상단 캡션 12px보다 살짝만 큰 13px~13.5px의 잔잔한 펜글씨) */}
+            {/* 본문 입력 */}
             <div>
               <textarea
                 value={diaryContent}
@@ -879,20 +892,31 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
         </div>
       </section>
 
-      {/* ==================== 소소한 기록 섹션 헤더 & 단어 검색 바 ==================== */}
+      {/* ==================== 기록 목차 섹션 헤더 & 단어 검색 바 ==================== */}
       <div className="space-y-3.5">
         <div className="flex items-center justify-between px-1 border-b border-[#D5C7B2] pb-2">
           <div className="flex items-center gap-2">
             <h2 className="text-[13.5px] sm:text-[14.5px] text-[#2C241D] tracking-[0.14em] font-normal">
-              소소한 기록
+              소소한 기록 목차
             </h2>
             <span className="text-[11.5px] text-[#786B5D] tracking-[0.06em]">
               ({filteredEntries.length}건)
             </span>
           </div>
-          <span className="text-[10px] text-[#786B5D] tracking-[0.18em] uppercase">
-            DAILY ARCHIVE
-          </span>
+          <div className="flex items-center gap-2">
+            {pagedEntries.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleAllPaged}
+                className="text-[11px] text-[#6E6358] hover:text-[#2C241D] px-2.5 py-0.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] transition-colors"
+              >
+                {allPagedExpanded ? '내용 모두 접기 ▴' : '내용 모두 펼치기 ▾'}
+              </button>
+            )}
+            <span className="text-[10px] text-[#786B5D] tracking-[0.18em] uppercase hidden sm:inline">
+              MY ARCHIVE
+            </span>
+          </div>
         </div>
 
         {/* 단어 검색 & 날짜/분류 필터 카드 */}
@@ -901,14 +925,20 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="찾고 싶은 단어를 입력해 보세요 (예: 진공기, 계약서, 쿠니아, 4대보험...)"
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="찾고 싶은 단어를 입력하면 해당 기록의 내용까지 바로 펼쳐집니다 (예: 할부, 진공기, 치과...)"
               className="w-full pl-4 pr-20 py-2 bg-[#FDFBF7] border border-[#D4C5B0] rounded-full text-[12.5px] sm:text-[13px] text-[#352E28] placeholder:text-[#A6998A] tracking-[0.03em] focus:border-[#8C7D6B] outline-none shadow-2xs"
             />
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-[#5A5046] bg-[#E8DEC9] hover:bg-[#DFD2BA] px-2.5 py-0.5 rounded-full border border-[#C5B59C]"
               >
                 지우기 ✕
@@ -924,6 +954,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                 onChange={(e) => {
                   setSelectedMonth(e.target.value);
                   setFilterDate('');
+                  setCurrentPage(1);
                 }}
                 className="px-3 py-1 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B] text-[11.5px] outline-none cursor-pointer"
               >
@@ -943,13 +974,17 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                   onChange={(e) => {
                     setFilterDate(e.target.value);
                     if (e.target.value) setSelectedMonth('all');
+                    setCurrentPage(1);
                   }}
                   className="bg-transparent text-[#2C241D] outline-none cursor-pointer"
                 />
                 {filterDate && (
                   <button
                     type="button"
-                    onClick={() => setFilterDate('')}
+                    onClick={() => {
+                      setFilterDate('');
+                      setCurrentPage(1);
+                    }}
                     className="text-[10.5px] text-[#2F2720] bg-[#E8DEC9] px-1.5 py-0.2 rounded-full"
                   >
                     ✕
@@ -959,7 +994,10 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
 
               <button
                 type="button"
-                onClick={() => setOnlyImportant((prev) => !prev)}
+                onClick={() => {
+                  setOnlyImportant((prev) => !prev);
+                  setCurrentPage(1);
+                }}
                 className={`px-2.5 py-1 rounded-full text-[11.5px] transition-colors ${
                   onlyImportant
                     ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720]'
@@ -982,7 +1020,10 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
             <div className="flex items-center gap-1 flex-wrap">
               <button
                 type="button"
-                onClick={() => setFilterTag('all')}
+                onClick={() => {
+                  setFilterTag('all');
+                  setCurrentPage(1);
+                }}
                 className={`px-2.5 py-1 rounded-full text-[11.5px] transition-colors ${
                   filterTag === 'all'
                     ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720]'
@@ -995,7 +1036,10 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                 <button
                   key={t.name}
                   type="button"
-                  onClick={() => setFilterTag(filterTag === t.name ? 'all' : t.name)}
+                  onClick={() => {
+                    setFilterTag(filterTag === t.name ? 'all' : t.name);
+                    setCurrentPage(1);
+                  }}
                   className={`px-2.5 py-1 rounded-full text-[11.5px] transition-colors ${
                     filterTag === t.name
                       ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720]'
@@ -1010,14 +1054,14 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
         </div>
       </div>
 
-      {/* ==================== 날짜별 일기 카드 리스트 (잔잔하고 작은 펜글씨 일기장 감성) ==================== */}
+      {/* ==================== 심플 한 줄 목차 리스트 (클릭하거나 검색 시 본문 펼침) ==================== */}
       {loading ? (
-        <div className="bg-[#F7F2E9] rounded-2xl p-12 text-center border border-[#E3D9C8] text-xs text-[#7A6F63] tracking-[0.08em]">
+        <div className="bg-[#F7F2E9] rounded-2xl p-10 text-center border border-[#E3D9C8] text-xs text-[#7A6F63] tracking-[0.08em]">
           기록을 불러오는 중입니다...
         </div>
-      ) : groupedByDate.length === 0 ? (
-        <div className="bg-[#F7F2E9] rounded-2xl p-12 text-center border border-[#E3D9C8]">
-          <p className="text-[13px] text-[#4A3F35] tracking-[0.08em] mb-1.5">
+      ) : filteredEntries.length === 0 ? (
+        <div className="bg-[#F7F2E9] rounded-2xl p-10 text-center border border-[#E3D9C8]">
+          <p className="text-[13px] text-[#4A3F35] tracking-[0.08em] mb-1">
             {searchQuery.trim() ||
             filterDate ||
             selectedMonth !== 'all' ||
@@ -1034,136 +1078,179 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
         </div>
       ) : (
         <div className="space-y-4">
-          {groupedByDate.map((group) => {
-            return (
-              <article
-                key={group.date}
-                className="bg-[#FDFBF7] rounded-2xl overflow-hidden border border-[#D4C5B0] shadow-[0_6px_22px_rgba(55,42,28,0.05)] transition-all"
-              >
-                {/* 카드 상단 날짜 바 */}
-                <div className="px-5 sm:px-7 py-2.5 border-b border-[#EAE0D0] bg-[#F7F2E9] flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFilterDate(filterDate === group.date ? '' : group.date)
-                      }
-                      className="text-xs sm:text-[13px] text-[#352E28] tracking-[0.12em] hover:underline"
-                      title="이 날짜만 모아보기"
-                    >
-                      {formatDotDate(group.date)}
-                    </button>
-                    <span className="text-[11px] text-[#8C7F70] tracking-[0.06em]">
-                      · {getKoreanDateLabel(group.date)}
-                    </span>
+          <div className="bg-[#FDFBF7] rounded-2xl overflow-hidden border border-[#D4C5B0] shadow-[0_6px_22px_rgba(55,42,28,0.05)] divide-y divide-[#EAE0D0]">
+            {pagedEntries.map((item) => {
+              // 검색어가 입력된 상태이거나 사용자가 클릭해 펼친 상태일 때만 본문 표시
+              const isSearching = searchQuery.trim().length > 0;
+              const isExpanded = isSearching || !!expandedIds[item.id];
+              const urls = (item.content || '').match(/(https?:\/\/[^\s]+|www\.[^\s]+)/gi);
+              const displayTitle =
+                item.title?.trim() ||
+                item.content?.trim().split('\n')[0]?.slice(0, 45) ||
+                `${formatDotDate(item.date)}의 기록`;
+
+              return (
+                <div key={item.id} className="transition-colors hover:bg-[#FAF6F0]/70">
+                  {/* 심플 한 줄 목차 행 */}
+                  <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleImportant(item.id)}
+                        className={`text-xs leading-none shrink-0 ${
+                          item.isImportant ? 'text-[#8C6D46]' : 'text-[#D4C5B0]'
+                        }`}
+                        title="중요 표시"
+                      >
+                        {item.isImportant ? '★' : '☆'}
+                      </button>
+
+                      {/* 날짜 + 분류 + 제목 클릭 시 본문 펼침/접기 */}
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(item.id)}
+                        className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 text-left group cursor-pointer"
+                      >
+                        <span className="text-[11.5px] sm:text-xs text-[#7A6F63] tracking-[0.06em] shrink-0 whitespace-nowrap">
+                          {formatDotDate(item.date)}
+                        </span>
+                        <span className="text-[10.5px] px-2 py-0.5 rounded-full border border-[#DFD5C5] bg-[#F7F2E9] text-[#7A6F63] tracking-[0.03em] shrink-0 whitespace-nowrap">
+                          {item.tag}
+                        </span>
+                        <span className="text-[13px] sm:text-[13.5px] text-[#2C241D] group-hover:text-[#6E5D4B] tracking-[0.04em] truncate min-w-0">
+                          {renderHighlightedText(displayTitle)}
+                        </span>
+                        <span className="text-[10px] text-[#9E9080] shrink-0 ml-0.5">
+                          {isExpanded ? '▴' : '▾'}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* 우측 액션 버튼 (인쇄 / 수정 / 삭제) */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handlePrintSingleEntry(item)}
+                        className="px-2 py-0.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] hover:bg-[#EFE7DA] text-[#6E6358] text-[10.5px] transition-colors whitespace-nowrap"
+                        title="이 기록 종이 인쇄"
+                      >
+                        🖨️ 인쇄
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(item)}
+                        className="px-2 py-0.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] hover:bg-[#E8DEC9] text-[#4A3F35] text-[10.5px] transition-colors whitespace-nowrap"
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(item.id)}
+                        className="px-2 py-0.5 rounded-full border border-[#E6D2CC] bg-[#FDF9F8] hover:bg-[#F5E6E2] text-[#8C5347] text-[10.5px] transition-colors whitespace-nowrap"
+                      >
+                        삭제
+                      </button>
+                    </div>
                   </div>
 
+                  {/* 클릭하거나 단어 검색 시 아래로 스르륵 펼쳐지는 본문 */}
+                  {isExpanded && (
+                    <div className="px-5 sm:px-11 pb-4 pt-1 bg-[#FAF6F0]/60 border-t border-[#F0E8DA]">
+                      <p className="text-[13px] sm:text-[13.5px] text-[#3E3630] leading-[1.95] tracking-[0.04em] whitespace-pre-line font-normal break-keep">
+                        {renderHighlightedText(item.content)}
+                      </p>
+
+                      {urls && urls.length > 0 && (
+                        <div className="mt-2.5 pt-2 border-t border-[#EAE0D0] flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] text-[#857768]">바로가기 :</span>
+                          {Array.from(new Set(urls)).map((rawUrl, i) => {
+                            const href = /^https?:\/\//i.test(rawUrl)
+                              ? rawUrl
+                              : `https://${rawUrl}`;
+                            return (
+                              <a
+                                key={i}
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11.5px] text-[#4A3F35] hover:text-[#1C1612] bg-[#F7F2E9] border border-[#D6CBB9] px-2.5 py-0.5 rounded-full underline underline-offset-2 break-all"
+                              >
+                                {rawUrl} ↗
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 페이지네이션 (기록이 많아져도 깔끔하게 페이지별로 이동) */}
+          {totalPages > 1 &&
+            (() => {
+              const pageBlockSize = 5;
+              const currentBlock = Math.floor((safePage - 1) / pageBlockSize);
+              const startPage = currentBlock * pageBlockSize + 1;
+              const endPage = Math.min(totalPages, startPage + pageBlockSize - 1);
+              const visiblePages = Array.from(
+                { length: endPage - startPage + 1 },
+                (_, i) => startPage + i
+              );
+
+              return (
+                <div className="flex items-center justify-center gap-1.5 pt-1 flex-wrap">
                   <button
                     type="button"
-                    onClick={() => handlePrintDateGroup(group.date, group.items)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#C8BBA7] bg-[#FDFBF7] hover:bg-[#EFE7DA] text-[#4A3F35] text-[11px] tracking-[0.04em] transition-colors cursor-pointer"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={safePage === 1}
+                    className="px-2.5 py-1 rounded-full text-[11.5px] border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:bg-[#E8DEC9] disabled:opacity-40 disabled:pointer-events-none"
                   >
-                    <span>🖨️</span>
-                    <span>이 날짜 인쇄</span>
+                    « 처음
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                    className="px-2.5 py-1 rounded-full text-[11.5px] border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:bg-[#E8DEC9] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    ‹ 이전
+                  </button>
+                  {visiblePages.map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-7 h-7 rounded-full text-xs transition-colors ${
+                        safePage === pageNum
+                          ? 'bg-[#E8DEC9] text-[#2F2720] border border-[#B8A68E]'
+                          : 'bg-[#FAF6F0] text-[#6E6358] border border-[#D6CBB9] hover:bg-[#EFE7DA]'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage === totalPages}
+                    className="px-2.5 py-1 rounded-full text-[11.5px] border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:bg-[#E8DEC9] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    다음 ›
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={safePage === totalPages}
+                    className="px-2.5 py-1 rounded-full text-[11.5px] border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:bg-[#E8DEC9] disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    끝 »
                   </button>
                 </div>
-
-                {/* 해당 날짜의 기록 본문들 */}
-                <div className="divide-y divide-[#EAE0D0]">
-                  {group.items.map((item) => {
-                    const urls = (item.content || '').match(
-                      /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
-                    );
-                    // 제목을 따로 입력하지 않아 본문 첫 줄과 동일한 경우 중복 제목 숨김 처리 (더 자연스러운 일기 형태)
-                    const showTitle =
-                      item.title &&
-                      item.title.trim() !== item.content.trim() &&
-                      item.title.trim() !== item.content.trim().split('\n')[0].trim();
-
-                    return (
-                      <div key={item.id} className="px-5 py-4 sm:px-7 sm:py-5 bg-[#FDFBF7]">
-                        <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
-                          <div className="flex items-center gap-2 flex-wrap min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => toggleImportant(item.id)}
-                              className={`text-xs leading-none ${
-                                item.isImportant ? 'text-[#8C6D46]' : 'text-[#C8BBA7]'
-                              }`}
-                              title="중요 표시"
-                            >
-                              {item.isImportant ? '★' : '☆'}
-                            </button>
-                            <span className="text-[10.5px] px-2 py-0.5 rounded-full border border-[#DFD5C5] bg-[#FAF6F0] text-[#7A6F63] tracking-[0.04em]">
-                              {item.tag}
-                            </span>
-                            {showTitle && (
-                              <h3 className="text-[13.5px] sm:text-[14px] text-[#2C241D] tracking-[0.05em] font-normal break-keep">
-                                {renderHighlightedText(item.title)}
-                              </h3>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {group.items.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handlePrintSingleEntry(item)}
-                                className="px-2.5 py-0.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] hover:bg-[#EFE7DA] text-[#6E6358] text-[10.5px] transition-colors"
-                              >
-                                단건 인쇄
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(item)}
-                              className="px-2.5 py-0.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] hover:bg-[#E8DEC9] text-[#4A3F35] text-[10.5px] transition-colors"
-                            >
-                              수정
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(item.id)}
-                              className="px-2.5 py-0.5 rounded-full border border-[#E6D2CC] bg-[#FDF9F8] hover:bg-[#F5E6E2] text-[#8C5347] text-[10.5px] transition-colors"
-                            >
-                              삭제
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* 본문: 상단 '매일의 중요한 순간을 차곡차곡 담아두는 곳'(12px)보다 살짝만 큰 13px~13.5px 얇은 펜글씨 */}
-                        <p className="text-[13px] sm:text-[13.5px] text-[#3E3630] leading-[1.95] tracking-[0.04em] whitespace-pre-line font-normal break-keep pl-1">
-                          {renderHighlightedText(item.content)}
-                        </p>
-
-                        {urls && urls.length > 0 && (
-                          <div className="mt-3 pt-2.5 border-t border-[#EAE0D0] flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] text-[#857768]">바로가기 :</span>
-                            {Array.from(new Set(urls)).map((rawUrl, i) => {
-                              const href = /^https?:\/\//i.test(rawUrl)
-                                ? rawUrl
-                                : `https://${rawUrl}`;
-                              return (
-                                <a
-                                  key={i}
-                                  href={href}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-[11.5px] text-[#4A3F35] hover:text-[#1C1612] bg-[#F7F2E9] border border-[#D6CBB9] px-2.5 py-0.5 rounded-full underline underline-offset-2 break-all"
-                                >
-                                  {rawUrl} ↗
-                                </a>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            );
-          })}
+              );
+            })()}
         </div>
       )}
     </div>
