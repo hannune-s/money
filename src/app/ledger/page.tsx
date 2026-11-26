@@ -421,6 +421,13 @@ export default function LedgerViewPage() {
           </a>
 
           <a
+            href="/admin?menu=diary"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            <span>일일 기록장</span>
+          </a>
+
+          <a
             href="/admin?menu=alba"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
           >

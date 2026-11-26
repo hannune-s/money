@@ -15,6 +15,7 @@ import {
 import { UNPAID_STORAGE_DATE } from '@/lib/unpaid';
 import UnpaidManagerSection from '@/components/UnpaidManagerSection';
 import HqLedgerSection from '@/components/HqLedgerSection';
+import DailyDiarySection, { DIARY_STORAGE_DATE } from '@/components/DailyDiarySection';
 
 interface AlbaRecord {
   id: string;
@@ -131,11 +132,12 @@ export default function FinancesAdminPage() {
   const [checkingLoginPin, setCheckingLoginPin] = useState(false);
 
   // 네비게이션 및 메뉴 상태
-  type AdminMenuType = 'finance' | 'alba' | 'bookmark' | 'event' | 'ledger' | 'hq_ledger' | 'unpaid' | 'password';
+  type AdminMenuType = 'finance' | 'alba' | 'bookmark' | 'event' | 'ledger' | 'hq_ledger' | 'unpaid' | 'diary' | 'password';
   const [activeMenu, setActiveMenu] = useState<AdminMenuType>('finance');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [unpaidVendorCount, setUnpaidVendorCount] = useState(0);
   const [hqLedgerCount, setHqLedgerCount] = useState(0);
+  const [diaryEntryCount, setDiaryEntryCount] = useState(0);
 
   const selectMenu = (menu: AdminMenuType) => {
     setActiveMenu(menu);
@@ -303,6 +305,7 @@ export default function FinancesAdminPage() {
         menuParam === 'ledger' ||
         menuParam === 'hq_ledger' ||
         menuParam === 'unpaid' ||
+        menuParam === 'diary' ||
         menuParam === 'event' ||
         menuParam === 'bookmark' ||
         menuParam === 'alba' ||
@@ -369,6 +372,31 @@ export default function FinancesAdminPage() {
     }
   };
 
+  const loadDiaryCount = async () => {
+    try {
+      const localDiary = localStorage.getItem('money_daily_diary_entries');
+      if (localDiary) {
+        const parsed = JSON.parse(localDiary);
+        if (Array.isArray(parsed)) setDiaryEntryCount(parsed.length);
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      const { data } = await supabase
+        .from('money_finances')
+        .select('memo')
+        .eq('target_date', DIARY_STORAGE_DATE)
+        .maybeSingle();
+      if (data?.memo) {
+        const parsed = JSON.parse(data.memo);
+        if (Array.isArray(parsed)) setDiaryEntryCount(parsed.length);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setCheckingLoginPin(true);
@@ -398,6 +426,7 @@ export default function FinancesAdminPage() {
     loadPinnedMemo();
     loadUnpaidVendorCount();
     loadHqLedgerCount();
+    loadDiaryCount();
   }, []);
 
   const loadPinnedMemo = async () => {
@@ -1561,9 +1590,19 @@ export default function FinancesAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className={`min-h-screen transition-colors ${
+        activeMenu === 'diary' ? 'bg-[#F3ECE1]' : 'bg-gray-50'
+      }`}
+    >
       {/* 상단 고정 네비게이션 바 (햄버거 메뉴 + 탭 전환) */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
+      <header
+        className={`sticky top-0 z-30 border-b transition-colors ${
+          activeMenu === 'diary'
+            ? 'bg-[#F3ECE1]/90 backdrop-blur-md border-[#E4DACB]'
+            : 'bg-white border-gray-200 shadow-sm'
+        }`}
+      >
         <div
           className={`${
             activeMenu === 'hq_ledger' ? 'max-w-[1480px]' : 'max-w-4xl'
@@ -1594,6 +1633,8 @@ export default function FinancesAdminPage() {
                 ? '본점지출관리'
                 : activeMenu === 'unpaid'
                 ? '미납금 · 외상 잔금 관리'
+                : activeMenu === 'diary'
+                ? '일일 기록장'
                 : '비밀번호 설정'}
             </span>
           </div>
@@ -1708,6 +1749,20 @@ export default function FinancesAdminPage() {
             <span>미납금 · 외상 잔금 관리</span>
             <span className="text-xs font-extrabold shrink-0">
               {unpaidVendorCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => selectMenu('diary')}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-colors text-left whitespace-nowrap ${
+              activeMenu === 'diary'
+                ? 'bg-[#F4EFE6] text-[#3D352E] border border-[#D8CFC0]'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <span>일일 기록장</span>
+            <span className="text-xs font-extrabold shrink-0">
+              {diaryEntryCount}
             </span>
           </button>
 
@@ -4025,6 +4080,9 @@ export default function FinancesAdminPage() {
         ) : activeMenu === 'unpaid' ? (
           /* ==================== [메뉴 2-5] 미납금 · 외상 잔금 관리 ==================== */
           <UnpaidManagerSection onVendorCountChange={setUnpaidVendorCount} />
+        ) : activeMenu === 'diary' ? (
+          /* ==================== [메뉴 2-6] 일일 일기 · 기록장 ==================== */
+          <DailyDiarySection onEntryCountChange={setDiaryEntryCount} />
         ) : (
           /* ==================== [메뉴 3] 비밀번호 설정 (공유페이지 & 장부페이지 & 어드민페이지) ==================== */
           <div className="max-w-xl mx-auto space-y-5">
