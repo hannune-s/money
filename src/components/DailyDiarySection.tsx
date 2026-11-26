@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 export const DIARY_STORAGE_DATE = '1970-01-11';
 
 export type DiaryMoodTag = '중요 기록' | '업무·매장' | '약속·계약' | '기억할 일' | '소소한 일상';
+export type DiaryFontStyle = 'pen_night' | 'pen_kyobo' | 'pen_maru';
 
 export interface DiaryEntry {
   id: string;
@@ -26,6 +27,28 @@ export const DIARY_TAGS: {
   { name: '약속·계약', label: '약속 · 계약' },
   { name: '기억할 일', label: '기억할 일' },
   { name: '소소한 일상', label: '소소한 일상' },
+];
+
+export const DIARY_FONTS: {
+  key: DiaryFontStyle;
+  label: string;
+  fontFamily: string;
+}[] = [
+  {
+    key: 'pen_night',
+    label: '고운밤 펜글씨',
+    fontFamily: "'Cafe24Oneprettynight', 'Gowun Batang', serif",
+  },
+  {
+    key: 'pen_kyobo',
+    label: '만년필 손글씨',
+    fontFamily: "'KyoboHand', 'Cafe24Oneprettynight', serif",
+  },
+  {
+    key: 'pen_maru',
+    label: '가는 명조체',
+    fontFamily: "'MaruBuriLight', 'Gowun Batang', serif",
+  },
 ];
 
 interface DailyDiarySectionProps {
@@ -60,6 +83,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fontStyle, setFontStyle] = useState<DiaryFontStyle>('pen_night');
 
   // 입력 폼 상태
   const [diaryDate, setDiaryDate] = useState(getKstDate());
@@ -76,6 +100,25 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
   const [filterTag, setFilterTag] = useState<'all' | DiaryMoodTag>('all');
   const [onlyImportant, setOnlyImportant] = useState(false);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  useEffect(() => {
+    try {
+      const savedFont = localStorage.getItem('money_diary_font_style') as DiaryFontStyle | null;
+      if (savedFont && DIARY_FONTS.some((f) => f.key === savedFont)) {
+        setFontStyle(savedFont);
+      }
+    } catch {}
+  }, []);
+
+  const handleSelectFont = (nextFont: DiaryFontStyle) => {
+    setFontStyle(nextFont);
+    try {
+      localStorage.setItem('money_diary_font_style', nextFont);
+    } catch {}
+  };
+
+  const currentFontFamily =
+    DIARY_FONTS.find((f) => f.key === fontStyle)?.fontFamily || DIARY_FONTS[0].fontFamily;
 
   useEffect(() => {
     onEntryCountChange?.(entries.length);
@@ -321,7 +364,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
       part.toLowerCase() === q.toLowerCase() ? (
         <mark
           key={idx}
-          className="bg-[#E8DEC9] text-[#1C1612] font-bold px-1.5 py-0.5 rounded"
+          className="bg-[#E8DEC9] text-[#1C1612] px-1.5 py-0.5 rounded"
         >
           {part}
         </mark>
@@ -362,13 +405,15 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
         const dateLabel = getKoreanDateLabel(group.date);
         const rowsHtml = group.items
           .map((item) => {
+            const showSeparateTitle =
+              item.title && item.title.trim() !== item.content.trim().split('\n')[0].trim();
             return `
               <div class="entry-box">
                 <div class="entry-header">
                   <div class="entry-title-wrap">
                     <span class="tag-badge">${escapeHtml(item.tag)}</span>
                     ${item.isImportant ? '<span class="imp-badge">★ 중요</span>' : ''}
-                    <span class="entry-title">${escapeHtml(item.title)}</span>
+                    ${showSeparateTitle ? `<span class="entry-title">${escapeHtml(item.title)}</span>` : ''}
                   </div>
                 </div>
                 <div class="entry-content">${escapeHtml(item.content)}</div>
@@ -396,13 +441,30 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
 <head>
   <meta charset="UTF-8" />
   <title>${escapeHtml(printTitle)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700&display=swap" rel="stylesheet">
   <style>
+    @font-face {
+      font-family: 'Cafe24Oneprettynight';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Oneprettynight.woff') format('woff');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'KyoboHand';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@1.0/KyoboHand.woff') format('woff');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'MaruBuriLight';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-10-21@1.0/MaruBuri-Regular.woff') format('woff');
+      font-weight: normal;
+      font-style: normal;
+    }
     @page { size: A4 portrait; margin: 15mm 15mm; }
     * { box-sizing: border-box; }
     body {
-      font-family: 'Gowun Batang', 'Nanum Myeongjo', 'Batang', serif;
-      color: #2B2520;
+      font-family: ${currentFontFamily};
+      color: #352E28;
       margin: 0;
       padding: 0;
       background: #fff;
@@ -427,8 +489,8 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
       border: 1px solid #B8A68E;
       padding: 8px 18px;
       border-radius: 999px;
-      font-weight: 700;
-      font-size: 13px;
+      font-weight: 600;
+      font-size: 12.5px;
       cursor: pointer;
     }
     .btn-close {
@@ -437,14 +499,13 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
       border: 1px solid #D6CBB9;
       padding: 8px 14px;
       border-radius: 999px;
-      font-weight: 600;
-      font-size: 13px;
+      font-size: 12.5px;
       cursor: pointer;
     }
     @media print { .no-print { display: none !important; } }
-    .doc-container { max-width: 760px; margin: 0 auto; padding: 12px 6px; }
+    .doc-container { max-width: 740px; margin: 0 auto; padding: 12px 6px; }
     .doc-header {
-      border-bottom: 1.5px solid #D5C7B2;
+      border-bottom: 1px solid #D5C7B2;
       padding-bottom: 14px;
       margin-bottom: 20px;
       display: flex;
@@ -458,13 +519,13 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
       margin-bottom: 6px;
     }
     .doc-title {
-      font-size: 24px;
+      font-size: 21px;
       font-weight: 400;
-      color: #1E1915;
+      color: #2B2520;
       margin: 0 0 4px 0;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.12em;
     }
-    .doc-subtitle { font-size: 12px; color: #786B5D; margin: 0; }
+    .doc-subtitle { font-size: 11.5px; color: #786B5D; margin: 0; letter-spacing: 0.04em; }
     .doc-meta { text-align: right; font-size: 11px; color: #786B5D; line-height: 1.6; }
     .date-card {
       border: 1px solid #D4C5B0;
@@ -477,41 +538,41 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
     .date-header {
       background: #F7F2E9;
       border-bottom: 1px solid #EAE0D0;
-      padding: 11px 18px;
+      padding: 10px 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .date-title { font-size: 15px; font-weight: 700; color: #1C1612; letter-spacing: 0.04em; }
+    .date-title { font-size: 13.5px; font-weight: 400; color: #2C241D; letter-spacing: 0.08em; }
     .date-count { font-size: 11px; color: #7A6F63; }
     .date-body { padding: 14px 18px; background: #FDFBF7; }
-    .entry-box { padding: 12px 0; border-bottom: 1px solid #EAE0D0; }
+    .entry-box { padding: 10px 0; border-bottom: 1px solid #EAE0D0; }
     .entry-box:last-child { border-bottom: none; padding-bottom: 2px; }
     .entry-box:first-child { padding-top: 2px; }
-    .entry-header { margin-bottom: 8px; }
+    .entry-header { margin-bottom: 6px; }
     .entry-title-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .tag-badge {
-      font-size: 11px;
+      font-size: 10.5px;
       background: #F7F2E9;
-      color: #5A5046;
+      color: #6E6256;
       border: 1px solid #D6CBB9;
-      padding: 2px 10px;
+      padding: 1px 9px;
       border-radius: 999px;
     }
     .imp-badge {
-      font-size: 11px;
-      font-weight: 700;
+      font-size: 10.5px;
       background: #E8DEC9;
       color: #2F2720;
       border: 1px solid #B8A68E;
-      padding: 2px 9px;
+      padding: 1px 8px;
       border-radius: 999px;
     }
-    .entry-title { font-size: 15px; font-weight: 700; color: #1C1612; }
+    .entry-title { font-size: 13.5px; font-weight: 400; color: #2C241D; letter-spacing: 0.04em; }
     .entry-content {
-      font-size: 14px;
+      font-size: 13px;
       line-height: 2.0;
-      color: #352E28;
+      letter-spacing: 0.03em;
+      color: #3E3630;
       white-space: pre-wrap;
       word-break: break-word;
     }
@@ -521,14 +582,14 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
       border-top: 1px solid #E2D8C7;
       display: flex;
       justify-content: space-between;
-      font-size: 11px;
+      font-size: 10.5px;
       color: #8C7F70;
     }
   </style>
 </head>
 <body>
   <div class="no-print">
-    <div style="font-size:13px;font-weight:700;color:#2C241D;">
+    <div style="font-size:12.5px;color:#2C241D;">
       종이 보관용 인쇄 미리보기 (총 ${dateGroups.length}일 · ${targetItems.length}건)
     </div>
     <div class="no-print-btns">
@@ -550,7 +611,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
     </div>
     ${dateSectionsHtml}
     <div class="doc-footer">
-      <span>소소한 기록 · 종이 보관용 문서</span>
+      <span>소소한 기록 · 종이 보관용 일기장</span>
       <span>${nowStr}</span>
     </div>
   </div>
@@ -606,17 +667,38 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
 
   return (
     <div
-      className="space-y-8 text-[#2B2520] selection:bg-[#DFD3C3]"
-      style={{ fontFamily: "'Gowun Batang', 'Nanum Myeongjo', 'Noto Serif KR', serif" }}
+      className="space-y-7 text-[#352E28] selection:bg-[#DFD3C3]"
+      style={{ fontFamily: currentFontFamily }}
     >
-      {/* 꽃육점-HANOOK 페이지와 동일한 고운바탕/나눔명조 웹폰트 */}
+      {/* 얇고 감성적인 펜글씨(카페24 고운밤, 교보손글씨, 마루부리 가는체, 고운바탕) 웹폰트 로드 */}
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700&display=swap');
+        @font-face {
+          font-family: 'Cafe24Oneprettynight';
+          src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Oneprettynight.woff') format('woff');
+          font-weight: normal;
+          font-style: normal;
+          font-display: swap;
+        }
+        @font-face {
+          font-family: 'KyoboHand';
+          src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@1.0/KyoboHand.woff') format('woff');
+          font-weight: normal;
+          font-style: normal;
+          font-display: swap;
+        }
+        @font-face {
+          font-family: 'MaruBuriLight';
+          src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-10-21@1.0/MaruBuri-Regular.woff') format('woff');
+          font-weight: 300;
+          font-style: normal;
+          font-display: swap;
+        }
       `}</style>
 
-      {/* ==================== 상단 메인 카드 & 기록 입력 영역 (hanook 상단 소개 카드 감성 그대로) ==================== */}
-      <section className="relative rounded-2xl overflow-hidden bg-[#F7F2E9] border border-[#E3D9C8] px-5 py-7 sm:px-10 sm:py-10 shadow-[0_10px_30px_rgba(60,46,33,0.05)]">
-        {/* 은은한 창살 & 햇살 나뭇잎 그림자 (hanook과 동일한 우아한 음영) */}
+      {/* ==================== 상단 메인 카드 & 기록 입력 영역 ==================== */}
+      <section className="relative rounded-2xl overflow-hidden bg-[#F7F2E9] border border-[#E3D9C8] px-5 py-7 sm:px-10 sm:py-9 shadow-[0_10px_30px_rgba(60,46,33,0.05)]">
+        {/* 은은한 창살 & 햇살 나뭇잎 그림자 */}
         <div
           className="pointer-events-none absolute -top-6 -right-6 w-64 h-64 opacity-[0.09]"
           style={{
@@ -640,60 +722,90 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
         </svg>
 
         <div className="relative z-10">
-          {/* 상단 타이틀 & 전체 인쇄 버튼 */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#E3D9C8]">
+          {/* 상단 타이틀 & 펜글씨체 선택 & 전체 인쇄 버튼 */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b border-[#E3D9C8]">
             <div>
-              <p className="text-[11px] sm:text-xs text-[#8C7F70] tracking-[0.22em] mb-2 font-normal">
+              <p className="text-[11.5px] sm:text-xs text-[#8C7F70] tracking-[0.22em] mb-2 font-normal">
                 매일의 중요한 순간을 차곡차곡 담아두는 곳
               </p>
-              <h1 className="text-[26px] sm:text-[34px] font-light text-[#1E1915] tracking-[0.14em] sm:tracking-[0.18em] leading-snug">
+              <h1
+                className="text-[24px] sm:text-[31px] font-light text-[#1E1915] tracking-[0.16em] leading-snug"
+                style={{ fontFamily: "'Gowun Batang', 'Nanum Myeongjo', serif" }}
+              >
                 일일 기록장
               </h1>
-              <p className="text-[11px] sm:text-[12px] text-[#7A6F63] tracking-[0.32em] mt-1 uppercase font-light">
+              <p
+                className="text-[10.5px] sm:text-[11.5px] text-[#7A6F63] tracking-[0.32em] mt-1 uppercase font-light"
+                style={{ fontFamily: "'Gowun Batang', 'Nanum Myeongjo', serif" }}
+              >
                 — D A I L Y &nbsp; N O T E
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              {editingId && (
+            <div className="flex flex-col sm:items-end gap-2 shrink-0">
+              {/* 펜글씨체 선택 스위치 */}
+              <div className="flex items-center gap-1 bg-[#FAF6F0] p-1 rounded-full border border-[#DFD5C5]">
+                <span className="text-[10.5px] text-[#8C7F70] pl-2.5 pr-1 tracking-[0.06em]">
+                  글씨체
+                </span>
+                {DIARY_FONTS.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => handleSelectFont(f.key)}
+                    style={{ fontFamily: f.fontFamily }}
+                    className={`px-2.5 py-1 rounded-full text-[11.5px] transition-colors whitespace-nowrap ${
+                      fontStyle === f.key
+                        ? 'bg-[#E8DEC9] text-[#2F2720] border border-[#B8A68E]'
+                        : 'text-[#6E6358] hover:text-[#2F2720]'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B] text-[11.5px] transition-colors"
+                  >
+                    수정 취소
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={resetForm}
-                  className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B] text-xs font-bold transition-colors"
+                  onClick={handlePrintFiltered}
+                  disabled={filteredEntries.length === 0}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#B8A68E] bg-[#E8DEC9] hover:bg-[#DFD2BA] disabled:opacity-40 text-[#2F2720] text-[11.5px] transition-colors shadow-2xs cursor-pointer"
                 >
-                  수정 취소
+                  <span>🖨️</span>
+                  <span>
+                    {searchQuery.trim() ||
+                    filterDate ||
+                    selectedMonth !== 'all' ||
+                    filterTag !== 'all' ||
+                    onlyImportant
+                      ? `조회 내역 인쇄 (${filteredEntries.length}건)`
+                      : `전체 기록 인쇄 (${entries.length}건)`}
+                  </span>
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={handlePrintFiltered}
-                disabled={filteredEntries.length === 0}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-[#B8A68E] bg-[#E8DEC9] hover:bg-[#DFD2BA] disabled:opacity-40 text-[#2F2720] text-xs font-bold transition-colors shadow-2xs cursor-pointer"
-              >
-                <span>🖨️</span>
-                <span>
-                  {searchQuery.trim() ||
-                  filterDate ||
-                  selectedMonth !== 'all' ||
-                  filterTag !== 'all' ||
-                  onlyImportant
-                    ? `조회 내역 인쇄 (${filteredEntries.length}건)`
-                    : `전체 기록 인쇄 (${entries.length}건)`}
-                </span>
-              </button>
+              </div>
             </div>
           </div>
 
-          {/* 기록 작성 폼 (밝은 크림 화이트 입력칸 & 샴페인 베이지 알약 버튼) */}
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          {/* 기록 작성 폼 (얇고 잔잔한 펜글씨 크기 적용) */}
+          <form onSubmit={handleSubmit} className="mt-5 space-y-3.5">
             {/* 날짜 & 태그 스티커 & 중요 체크 */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="date"
                   value={diaryDate}
                   onChange={(e) => setDiaryDate(e.target.value)}
-                  className="px-3.5 py-1.5 bg-[#FDFBF7] border border-[#D4C5B0] rounded-full text-xs sm:text-sm font-bold text-[#2C241D] focus:border-[#8C7D6B] outline-none cursor-pointer shadow-2xs"
+                  className="px-3 py-1 bg-[#FDFBF7] border border-[#D4C5B0] rounded-full text-xs text-[#352E28] focus:border-[#8C7D6B] outline-none cursor-pointer shadow-2xs"
                 />
 
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -702,10 +814,10 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                       key={t.name}
                       type="button"
                       onClick={() => setDiaryTag(t.name)}
-                      className={`px-3 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap ${
+                      className={`px-3 py-1 rounded-full text-[11.5px] tracking-[0.04em] transition-colors whitespace-nowrap ${
                         diaryTag === t.name
-                          ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720] font-bold shadow-2xs'
-                          : 'border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B]'
+                          ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720] shadow-2xs'
+                          : 'border border-[#D6CBB9] bg-[#FAF6F0] text-[#6E6358] hover:border-[#8C7D6B]'
                       }`}
                     >
                       {t.label}
@@ -717,9 +829,9 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
               <button
                 type="button"
                 onClick={() => setDiaryImportant((prev) => !prev)}
-                className={`px-3.5 py-1.5 rounded-full text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                className={`px-3 py-1 rounded-full text-[11.5px] tracking-[0.04em] transition-colors flex items-center gap-1 whitespace-nowrap ${
                   diaryImportant
-                    ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720] font-bold shadow-2xs'
+                    ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720] shadow-2xs'
                     : 'border border-[#D6CBB9] bg-[#FAF6F0] text-[#7A6F63] hover:border-[#8C7D6B]'
                 }`}
               >
@@ -728,25 +840,25 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
               </button>
             </div>
 
-            {/* 제목 입력 */}
+            {/* 제목 입력 (선택 — 작고 여리여리한 펜글씨 크기) */}
             <div>
               <input
                 type="text"
                 value={diaryTitle}
                 onChange={(e) => setDiaryTitle(e.target.value)}
-                placeholder="제목을 적어주세요 (비워두면 본문 첫 줄이 제목이 됩니다)"
-                className="w-full px-4 py-3 bg-[#FDFBF7] border border-[#D4C5B0] rounded-xl text-sm sm:text-[15px] font-bold text-[#1C1612] placeholder:text-[#9E9080] placeholder:font-normal focus:border-[#8C7D6B] outline-none shadow-2xs"
+                placeholder="짧은 제목 (비워두시면 본문만 일기처럼 기록됩니다)"
+                className="w-full px-4 py-2.5 bg-[#FDFBF7] border border-[#D4C5B0] rounded-xl text-[13px] sm:text-[13.5px] font-normal text-[#352E28] placeholder:text-[#A6998A] tracking-[0.04em] focus:border-[#8C7D6B] outline-none shadow-2xs"
               />
             </div>
 
-            {/* 본문 입력 (밝은 크림 화이트 카드) */}
+            {/* 본문 입력 (상단 캡션 12px보다 살짝만 큰 13px~13.5px의 잔잔한 펜글씨) */}
             <div>
               <textarea
                 value={diaryContent}
                 onChange={(e) => setDiaryContent(e.target.value)}
                 rows={5}
-                placeholder={`오늘 있었던 중요한 일이나 기억해 둘 약속을 편하게 적어주세요.\n단어 하나로 언제든 다시 검색해 찾고, 종이로 출력해 보관할 수 있습니다.`}
-                className="w-full p-4 sm:p-5 bg-[#FDFBF7] border border-[#D4C5B0] rounded-2xl text-[14.5px] sm:text-[15.5px] text-[#352E28] placeholder:text-[#9E9080] leading-[2.0] tracking-[0.02em] resize-y focus:border-[#8C7D6B] outline-none shadow-2xs"
+                placeholder={`오늘 있었던 중요한 일이나 기억해 둘 약속을 일기처럼 편하게 적어주세요.\n단어 하나로 언제든 다시 검색해 찾고, 종이로 출력해 보관할 수 있습니다.`}
+                className="w-full p-4 bg-[#FDFBF7] border border-[#D4C5B0] rounded-2xl text-[13px] sm:text-[13.5px] font-normal text-[#3E3630] placeholder:text-[#A6998A] leading-[1.95] tracking-[0.04em] resize-y focus:border-[#8C7D6B] outline-none shadow-2xs"
               />
             </div>
 
@@ -754,7 +866,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full sm:w-auto px-8 py-3 rounded-full border border-[#B8A68E] bg-[#E8DEC9] hover:bg-[#DFD2BA] disabled:opacity-50 text-[#2F2720] text-sm font-bold tracking-[0.06em] transition-colors shadow-xs cursor-pointer"
+                className="w-full sm:w-auto px-7 py-2.5 rounded-full border border-[#B8A68E] bg-[#E8DEC9] hover:bg-[#DFD2BA] disabled:opacity-50 text-[#2F2720] text-[13px] tracking-[0.08em] transition-colors shadow-xs cursor-pointer"
               >
                 {saving
                   ? '저장하는 중...'
@@ -768,36 +880,36 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
       </section>
 
       {/* ==================== 소소한 기록 섹션 헤더 & 단어 검색 바 ==================== */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-1 border-b border-[#D5C7B2] pb-2.5">
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-[15px] sm:text-[16px] text-[#2C241D] tracking-[0.14em] font-bold">
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between px-1 border-b border-[#D5C7B2] pb-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-[13.5px] sm:text-[14.5px] text-[#2C241D] tracking-[0.14em] font-normal">
               소소한 기록
             </h2>
-            <span className="text-xs text-[#786B5D] tracking-[0.06em]">
+            <span className="text-[11.5px] text-[#786B5D] tracking-[0.06em]">
               ({filteredEntries.length}건)
             </span>
           </div>
-          <span className="text-[10.5px] text-[#786B5D] tracking-[0.16em] uppercase">
+          <span className="text-[10px] text-[#786B5D] tracking-[0.18em] uppercase">
             DAILY ARCHIVE
           </span>
         </div>
 
         {/* 단어 검색 & 날짜/분류 필터 카드 */}
-        <div className="bg-[#F7F2E9] rounded-2xl border border-[#E3D9C8] p-4 sm:p-5 space-y-3 shadow-[0_6px_20px_rgba(60,46,33,0.03)]">
+        <div className="bg-[#F7F2E9] rounded-2xl border border-[#E3D9C8] p-3.5 sm:p-4 space-y-2.5 shadow-[0_6px_20px_rgba(60,46,33,0.03)]">
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="찾고 싶은 단어를 입력해 보세요 (예: 진공기, 계약서, 쿠니아, 4대보험...)"
-              className="w-full pl-4 pr-20 py-2.5 bg-[#FDFBF7] border border-[#D4C5B0] rounded-full text-sm text-[#1C1612] placeholder:text-[#9E9080] focus:border-[#8C7D6B] outline-none shadow-2xs"
+              className="w-full pl-4 pr-20 py-2 bg-[#FDFBF7] border border-[#D4C5B0] rounded-full text-[12.5px] sm:text-[13px] text-[#352E28] placeholder:text-[#A6998A] tracking-[0.03em] focus:border-[#8C7D6B] outline-none shadow-2xs"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#5A5046] bg-[#E8DEC9] hover:bg-[#DFD2BA] px-3 py-1 rounded-full border border-[#C5B59C]"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-[#5A5046] bg-[#E8DEC9] hover:bg-[#DFD2BA] px-2.5 py-0.5 rounded-full border border-[#C5B59C]"
               >
                 지우기 ✕
               </button>
@@ -806,14 +918,14 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             {/* 월별 / 특정일 필터 */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <select
                 value={selectedMonth}
                 onChange={(e) => {
                   setSelectedMonth(e.target.value);
                   setFilterDate('');
                 }}
-                className="px-3 py-1.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B] text-xs font-bold outline-none cursor-pointer"
+                className="px-3 py-1 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B] text-[11.5px] outline-none cursor-pointer"
               >
                 <option value="all">전체 기간</option>
                 {availableMonths.map((m) => (
@@ -823,7 +935,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                 ))}
               </select>
 
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-xs text-[#5A5046]">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-[11.5px] text-[#5A5046]">
                 <span>날짜 선택:</span>
                 <input
                   type="date"
@@ -832,13 +944,13 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                     setFilterDate(e.target.value);
                     if (e.target.value) setSelectedMonth('all');
                   }}
-                  className="bg-transparent font-bold text-[#2C241D] outline-none cursor-pointer"
+                  className="bg-transparent text-[#2C241D] outline-none cursor-pointer"
                 />
                 {filterDate && (
                   <button
                     type="button"
                     onClick={() => setFilterDate('')}
-                    className="text-[11px] font-bold text-[#2F2720] bg-[#E8DEC9] px-2 py-0.5 rounded-full"
+                    className="text-[10.5px] text-[#2F2720] bg-[#E8DEC9] px-1.5 py-0.2 rounded-full"
                   >
                     ✕
                   </button>
@@ -848,9 +960,9 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
               <button
                 type="button"
                 onClick={() => setOnlyImportant((prev) => !prev)}
-                className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
+                className={`px-2.5 py-1 rounded-full text-[11.5px] transition-colors ${
                   onlyImportant
-                    ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720] font-bold'
+                    ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720]'
                     : 'border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B]'
                 }`}
               >
@@ -860,20 +972,20 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
               <button
                 type="button"
                 onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
-                className="px-3 py-1.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B] text-xs transition-colors"
+                className="px-2.5 py-1 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B] text-[11.5px] transition-colors"
               >
                 {sortOrder === 'desc' ? '최신순 ↓' : '오래된순 ↑'}
               </button>
             </div>
 
             {/* 태그별 필터 */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap">
               <button
                 type="button"
                 onClick={() => setFilterTag('all')}
-                className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                className={`px-2.5 py-1 rounded-full text-[11.5px] transition-colors ${
                   filterTag === 'all'
-                    ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720] font-bold'
+                    ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720]'
                     : 'border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B]'
                 }`}
               >
@@ -884,9 +996,9 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                   key={t.name}
                   type="button"
                   onClick={() => setFilterTag(filterTag === t.name ? 'all' : t.name)}
-                  className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                  className={`px-2.5 py-1 rounded-full text-[11.5px] transition-colors ${
                     filterTag === t.name
-                      ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720] font-bold'
+                      ? 'border border-[#B8A68E] bg-[#E8DEC9] text-[#2F2720]'
                       : 'border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046] hover:border-[#8C7D6B]'
                   }`}
                 >
@@ -898,14 +1010,14 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
         </div>
       </div>
 
-      {/* ==================== 날짜별 기록 카드 리스트 (hanook 아티클 카드 스타일: 밝은 #FDFBF7 배경) ==================== */}
+      {/* ==================== 날짜별 일기 카드 리스트 (잔잔하고 작은 펜글씨 일기장 감성) ==================== */}
       {loading ? (
-        <div className="bg-[#F7F2E9] rounded-2xl p-12 text-center border border-[#E3D9C8] text-sm text-[#7A6F63]">
+        <div className="bg-[#F7F2E9] rounded-2xl p-12 text-center border border-[#E3D9C8] text-xs text-[#7A6F63] tracking-[0.08em]">
           기록을 불러오는 중입니다...
         </div>
       ) : groupedByDate.length === 0 ? (
         <div className="bg-[#F7F2E9] rounded-2xl p-12 text-center border border-[#E3D9C8]">
-          <p className="text-sm text-[#4A3F35] tracking-[0.08em] mb-1.5 font-bold">
+          <p className="text-[13px] text-[#4A3F35] tracking-[0.08em] mb-1.5">
             {searchQuery.trim() ||
             filterDate ||
             selectedMonth !== 'all' ||
@@ -914,34 +1026,34 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
               ? '찾으시는 조건에 맞는 기록이 없습니다.'
               : '첫 번째 이야기를 준비하고 있습니다.'}
           </p>
-          <p className="text-xs text-[#8C7F70] leading-relaxed">
+          <p className="text-[11.5px] text-[#8C7F70] leading-relaxed tracking-[0.04em]">
             {searchQuery.trim()
               ? '다른 단어로 검색해 보시거나 날짜 필터를 해제해 보세요.'
               : '매일의 정갈한 일상과 기억하고 싶은 중요한 순간들이 이곳에 담깁니다.'}
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {groupedByDate.map((group) => {
             return (
               <article
                 key={group.date}
-                className="bg-[#FDFBF7] rounded-2xl overflow-hidden border border-[#D4C5B0] shadow-[0_8px_26px_rgba(55,42,28,0.06)] transition-all"
+                className="bg-[#FDFBF7] rounded-2xl overflow-hidden border border-[#D4C5B0] shadow-[0_6px_22px_rgba(55,42,28,0.05)] transition-all"
               >
-                {/* 카드 상단 날짜 바 (hanook 상세 카드 상단 바와 동일한 #F7F2E9 톤) */}
-                <div className="px-5 sm:px-8 py-3.5 border-b border-[#EAE0D0] bg-[#F7F2E9] flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2.5">
+                {/* 카드 상단 날짜 바 */}
+                <div className="px-5 sm:px-7 py-2.5 border-b border-[#EAE0D0] bg-[#F7F2E9] flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() =>
                         setFilterDate(filterDate === group.date ? '' : group.date)
                       }
-                      className="text-xs sm:text-sm text-[#2C241D] font-bold tracking-[0.08em] hover:underline"
+                      className="text-xs sm:text-[13px] text-[#352E28] tracking-[0.12em] hover:underline"
                       title="이 날짜만 모아보기"
                     >
                       {formatDotDate(group.date)}
                     </button>
-                    <span className="text-[11px] text-[#857768]">
+                    <span className="text-[11px] text-[#8C7F70] tracking-[0.06em]">
                       · {getKoreanDateLabel(group.date)}
                     </span>
                   </div>
@@ -949,7 +1061,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                   <button
                     type="button"
                     onClick={() => handlePrintDateGroup(group.date, group.items)}
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-[#C8BBA7] bg-[#FDFBF7] hover:bg-[#EFE7DA] text-[#3A3129] text-xs font-bold transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#C8BBA7] bg-[#FDFBF7] hover:bg-[#EFE7DA] text-[#4A3F35] text-[11px] tracking-[0.04em] transition-colors cursor-pointer"
                   >
                     <span>🖨️</span>
                     <span>이 날짜 인쇄</span>
@@ -962,27 +1074,34 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                     const urls = (item.content || '').match(
                       /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
                     );
+                    // 제목을 따로 입력하지 않아 본문 첫 줄과 동일한 경우 중복 제목 숨김 처리 (더 자연스러운 일기 형태)
+                    const showTitle =
+                      item.title &&
+                      item.title.trim() !== item.content.trim() &&
+                      item.title.trim() !== item.content.trim().split('\n')[0].trim();
 
                     return (
-                      <div key={item.id} className="p-5 sm:p-8 bg-[#FDFBF7]">
-                        <div className="flex items-start justify-between gap-3 flex-wrap mb-3.5">
+                      <div key={item.id} className="px-5 py-4 sm:px-7 sm:py-5 bg-[#FDFBF7]">
+                        <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
                           <div className="flex items-center gap-2 flex-wrap min-w-0">
                             <button
                               type="button"
                               onClick={() => toggleImportant(item.id)}
-                              className={`text-sm leading-none ${
+                              className={`text-xs leading-none ${
                                 item.isImportant ? 'text-[#8C6D46]' : 'text-[#C8BBA7]'
                               }`}
                               title="중요 표시"
                             >
                               {item.isImportant ? '★' : '☆'}
                             </button>
-                            <span className="text-[11px] px-2.5 py-0.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] text-[#5A5046]">
+                            <span className="text-[10.5px] px-2 py-0.5 rounded-full border border-[#DFD5C5] bg-[#FAF6F0] text-[#7A6F63] tracking-[0.04em]">
                               {item.tag}
                             </span>
-                            <h3 className="text-base sm:text-xl text-[#1C1612] leading-snug tracking-[0.02em] font-bold break-keep">
-                              {renderHighlightedText(item.title)}
-                            </h3>
+                            {showTitle && (
+                              <h3 className="text-[13.5px] sm:text-[14px] text-[#2C241D] tracking-[0.05em] font-normal break-keep">
+                                {renderHighlightedText(item.title)}
+                              </h3>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -990,7 +1109,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                               <button
                                 type="button"
                                 onClick={() => handlePrintSingleEntry(item)}
-                                className="px-2.5 py-1 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] hover:bg-[#EFE7DA] text-[#5A5046] text-[11px] font-bold transition-colors"
+                                className="px-2.5 py-0.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] hover:bg-[#EFE7DA] text-[#6E6358] text-[10.5px] transition-colors"
                               >
                                 단건 인쇄
                               </button>
@@ -998,27 +1117,28 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                             <button
                               type="button"
                               onClick={() => handleEdit(item)}
-                              className="px-3 py-1 rounded-full border border-[#C8BBA7] bg-[#FAF6F0] hover:bg-[#E8DEC9] text-[#2F2720] text-[11px] font-bold transition-colors"
+                              className="px-2.5 py-0.5 rounded-full border border-[#D6CBB9] bg-[#FAF6F0] hover:bg-[#E8DEC9] text-[#4A3F35] text-[10.5px] transition-colors"
                             >
                               수정
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDelete(item.id)}
-                              className="px-3 py-1 rounded-full border border-[#E2C8C0] bg-[#FDF8F6] hover:bg-[#F5E6E2] text-[#8C4A3E] text-[11px] font-bold transition-colors"
+                              className="px-2.5 py-0.5 rounded-full border border-[#E6D2CC] bg-[#FDF9F8] hover:bg-[#F5E6E2] text-[#8C5347] text-[10.5px] transition-colors"
                             >
                               삭제
                             </button>
                           </div>
                         </div>
 
-                        <p className="text-[14.5px] sm:text-[15.5px] text-[#352E28] leading-[2.05] tracking-[0.02em] whitespace-pre-line font-normal break-keep">
+                        {/* 본문: 상단 '매일의 중요한 순간을 차곡차곡 담아두는 곳'(12px)보다 살짝만 큰 13px~13.5px 얇은 펜글씨 */}
+                        <p className="text-[13px] sm:text-[13.5px] text-[#3E3630] leading-[1.95] tracking-[0.04em] whitespace-pre-line font-normal break-keep pl-1">
                           {renderHighlightedText(item.content)}
                         </p>
 
                         {urls && urls.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-[#EAE0D0] flex flex-wrap items-center gap-2">
-                            <span className="text-xs text-[#857768]">바로가기 :</span>
+                          <div className="mt-3 pt-2.5 border-t border-[#EAE0D0] flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] text-[#857768]">바로가기 :</span>
                             {Array.from(new Set(urls)).map((rawUrl, i) => {
                               const href = /^https?:\/\//i.test(rawUrl)
                                 ? rawUrl
@@ -1029,7 +1149,7 @@ export default function DailyDiarySection({ onEntryCountChange }: DailyDiarySect
                                   href={href}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs text-[#4A3F35] hover:text-[#1C1612] bg-[#F7F2E9] border border-[#D6CBB9] px-3 py-1 rounded-full underline underline-offset-2 break-all"
+                                  className="inline-flex items-center gap-1 text-[11.5px] text-[#4A3F35] hover:text-[#1C1612] bg-[#F7F2E9] border border-[#D6CBB9] px-2.5 py-0.5 rounded-full underline underline-offset-2 break-all"
                                 >
                                   {rawUrl} ↗
                                 </a>
