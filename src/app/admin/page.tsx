@@ -1857,7 +1857,7 @@ export default function FinancesAdminPage() {
               />
             </div>
 
-            {/* 고정 즐겨찾기 바로가기 (전달사항 위 — 공유페이지 연동) */}
+            {/* 고정 즐겨찾기 바로가기 (전달사항 위 — 어드민 전용) */}
             <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
@@ -1865,7 +1865,7 @@ export default function FinancesAdminPage() {
                     즐겨찾기 바로가기
                   </h2>
                   <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
-                    (날짜와 무관하게 고정되며 공유페이지 상단에도 버튼이 표시됩니다)
+                    (어드민 전용 · 공유페이지에는 표시되지 않고 나만 보는 고정 링크입니다)
                   </span>
                 </div>
                 <button
